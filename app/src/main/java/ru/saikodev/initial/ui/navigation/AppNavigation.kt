@@ -1,8 +1,13 @@
 package ru.saikodev.initial.ui.navigation
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -104,17 +109,10 @@ fun AppNavigation() {
 }
 
 @Composable
-fun AuthScreen(navController: androidx.navigation.NavController, mainViewModel: MainViewModel) {
-    // This will be a screen with tabs: QR Login and Email Login
-    androidx.compose.foundation.layout.Box(
-        modifier = androidx.compose.ui.Modifier.fillMaxSize(),
-        contentAlignment = androidx.compose.ui.Alignment.Center
-    ) {
-        androidx.compose.material3.Text("Auth Splash - check login status")
-    }
-
-    // Auto-navigate based on auth state
-    // For now, just show the QR login screen
+fun AuthScreen(
+    navController: androidx.navigation.NavController,
+    mainViewModel: MainViewModel
+) {
     QrLoginScreen(
         onLoginSuccess = {
             navController.navigate(Screen.ChatList.route) {

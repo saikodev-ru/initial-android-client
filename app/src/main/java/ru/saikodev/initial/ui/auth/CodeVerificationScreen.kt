@@ -4,8 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Icon
-import androidx.compose.foundation.layout.IconButton
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -13,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -21,6 +20,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
@@ -33,7 +34,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -57,7 +61,7 @@ fun CodeVerificationScreen(
     onBack: () -> Unit,
     viewModel: AuthViewModel = hiltViewModel()
 ) {
-    var code by remember { mutableStateOf(List(5) { "" }.toMutableStateList()) }
+    val code = remember { mutableStateListOf("", "", "", "", "") }
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
     val resendTimer by viewModel.resendTimer.collectAsState()
@@ -130,7 +134,7 @@ fun CodeVerificationScreen(
                                     focusRequesters[index + 1].requestFocus()
                                 }
                                 // Auto-submit when all filled
-                                if (code.all { it.isNotEmpty() }) {
+                                if (code.all { it.isNotEmpty() } as Boolean) {
                                     focusManager.clearFocus()
                                     viewModel.verifyCode(email, code.joinToString("")) {
                                         onLoggedIn()
@@ -164,7 +168,7 @@ fun CodeVerificationScreen(
                     .fillMaxWidth()
                     .height(50.dp),
                 shape = RoundedCornerShape(12.dp),
-                enabled = code.all { it.isNotEmpty() } && !isLoading,
+                enabled = code.all { it.isNotEmpty() } as Boolean && !isLoading,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary
                 )

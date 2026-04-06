@@ -3,6 +3,8 @@ package ru.saikodev.initial.data.repository
 import ru.saikodev.initial.data.api.InitialApi
 import ru.saikodev.initial.data.api.dto.*
 import ru.saikodev.initial.data.preferences.TokenManager
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import ru.saikodev.initial.domain.model.User
 import ru.saikodev.initial.domain.repository.AuthRepository
 import javax.inject.Inject
@@ -32,7 +34,7 @@ class AuthRepositoryImpl @Inject constructor(
             val res = api.verifyCode(VerifyCodeRequest(email, code))
             if (res.ok && res.token != null && res.user != null) {
                 tokenManager.saveToken(res.token)
-                tokenManager.saveUserJson(kotlinx.serialization.json.Json.encodeToString(res.user))
+                tokenManager.saveUserJson(Json.encodeToString(res.user))
                 Result.success(res.user.toDomain())
             } else {
                 Result.failure(Exception(res.message ?: "Ошибка верификации"))
@@ -51,7 +53,7 @@ class AuthRepositoryImpl @Inject constructor(
             if (res.ok) {
                 val me = api.getMe()
                 if (me.ok && me.user != null) {
-                    tokenManager.saveUserJson(kotlinx.serialization.json.Json.encodeToString(me.user))
+                    tokenManager.saveUserJson(Json.encodeToString(me.user))
                     Result.success(me.user.toDomain())
                 } else {
                     Result.failure(Exception("Ошибка получения профиля"))
@@ -90,7 +92,7 @@ class AuthRepositoryImpl @Inject constructor(
     override fun getSavedUser(): User? {
         val json = tokenManager.getUserJson() ?: return null
         return try {
-            kotlinx.serialization.json.Json.decodeFromString<UserDto>(json).toDomain()
+            Json.decodeFromString<UserDto>(json).toDomain()
         } catch (e: Exception) {
             null
         }

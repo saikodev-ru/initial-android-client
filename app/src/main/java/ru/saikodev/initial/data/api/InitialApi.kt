@@ -5,8 +5,7 @@ import retrofit2.http.*
 import ru.saikodev.initial.data.api.dto.*
 
 interface InitialApi {
-
-    // ── Auth ──
+    // Auth
     @POST("send_code")
     suspend fun sendCode(@Body request: SendCodeRequest): SendCodeResponse
 
@@ -28,7 +27,7 @@ interface InitialApi {
     @POST("qr_link_consume")
     suspend fun qrLinkConsume(@Body request: QrLinkConsumeRequest): QrLinkConsumeResponse
 
-    // ── Profile ──
+    // Profile
     @GET("get_me")
     suspend fun getMe(): GetMeResponse
 
@@ -39,7 +38,10 @@ interface InitialApi {
     @POST("upload_avatar")
     suspend fun uploadAvatar(@Part file: MultipartBody.Part): UploadMediaResponse
 
-    // ── Messages ──
+    @GET("sessions")
+    suspend fun getSessions(): SessionsResponse
+
+    // Messages
     @GET("get_messages")
     suspend fun getMessages(
         @Query("chat_id") chatId: Int,
@@ -61,18 +63,18 @@ interface InitialApi {
     @POST("delete_message")
     suspend fun deleteMessage(@Body request: DeleteMessageRequest): DeleteMessageResponse
 
-    // ── Reactions ──
-    @GET("get_reactions")
-    suspend fun getReactions(@Query("ids") ids: String): GetReactionsResponse
-
+    // Reactions
     @POST("react_message")
     suspend fun reactMessage(@Body request: ReactMessageRequest): ReactMessageResponse
 
-    // ── Search ──
+    @GET("get_reactions")
+    suspend fun getReactions(@Query("ids") ids: String): GetReactionsResponse
+
+    // Search
     @GET("search_user")
     suspend fun searchUser(@Query("q") query: String): SearchUserResponse
 
-    // ── Chat management ──
+    // Chat management
     @POST("pin_chat")
     suspend fun pinChat(@Body request: PinChatRequest): PinChatResponse
 
@@ -82,7 +84,7 @@ interface InitialApi {
     @POST("delete_chat")
     suspend fun deleteChat(@Body request: DeleteChatRequest): DeleteChatResponse
 
-    // ── Media ──
+    // Media
     @Multipart
     @POST("upload_media")
     suspend fun uploadMedia(@Part file: MultipartBody.Part): UploadMediaResponse
@@ -91,15 +93,11 @@ interface InitialApi {
     @POST("upload_file")
     suspend fun uploadFile(@Part file: MultipartBody.Part): UploadMediaResponse
 
-    // ── Presence ──
+    // Presence
     @POST("update_presence")
     suspend fun updatePresence(): UpdatePresenceResponse
 
-    // ── Link preview ──
+    // Link preview
     @GET("link_preview")
     suspend fun getLinkPreview(@Query("url") url: String): LinkPreviewResponse
-
-    // ── Sessions ──
-    @GET("sessions")
-    suspend fun getSessions(): SessionsResponse
 }

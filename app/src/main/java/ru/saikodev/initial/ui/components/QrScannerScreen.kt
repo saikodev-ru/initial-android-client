@@ -1,259 +1,258 @@
 package ru.saikodev.initial.ui.components
 
 import android.Manifest
-import android.content.pm.PackageManager
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.camera.core.CameraSelector
-import androidx.camera.core.ExperimentalGetImage
-import androidx.camera.core.ImageAnalysis
-import androidx.camera.core.Preview
+import android.util.Log
+import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.systemBarsPadding
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.FlashlightOff
+import androidx.compose.material.icons.filled.FlashlightOn
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import com.google.mlkit.vision.barcode.BarcodeScanning
+import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
-import java.net.URLDecoder
+import ru.saikodev.initial.ui.auth.AuthViewModel
+import ru.saikodev.initial.domain.model.User
 import java.util.concurrent.Executors
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
 
-@OptIn(ExperimentalGetImage::class)
 @Composable
 fun QrScannerScreen(
-    onQrScanned: (loginToken: String, linkToken: String) -> Unit,
+    viewModel: AuthViewModel,
+    loginToken: String? = null,
+    linkToken: String? = null,
     onBack: () -> Unit,
-    title: String = "Сканирование QR-кода",
-    subtitle: String = "Наведите камеру на QR-код"
+    onAuthSuccess: (User) -> Unit
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    val scanResult by viewModel.scanResult.collectAsState()
     var hasCameraPermission by remember { mutableStateOf(false) }
-    var showPermissionDialog by remember { mutableStateOf(false) }
-    val processed = remember { mutableStateOf(false) }
+    var torchEnabled by remember { mutableStateOf(false) }
+    var processed by remember { mutableStateOf(false) }
 
-    val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        hasCameraPermission = granted
-        if (!granted) showPermissionDialog = true
+    // Check camera permission
+    LaunchedEffect(Unit) {
+        hasCameraPermission = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
+            android.content.pm.PackageManager.PERMISSION_GRANTED
     }
 
-    LaunchedEffect(Unit) {
-        val permission = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)
-        if (permission == PackageManager.PERMISSION_GRANTED) {
-            hasCameraPermission = true
-        } else {
-            permissionLauncher.launch(Manifest.permission.CAMERA)
+    // Handle direct login/link tokens
+    LaunchedEffect(loginToken, linkToken) {
+        if (!processed) {
+            processed = true
+            when {
+                loginToken != null -> viewModel.handleLoginToken(loginToken)
+                linkToken != null -> viewModel.handleLinkToken(linkToken)
+            }
         }
     }
 
-    if (showPermissionDialog) {
-        AlertDialog(
-            onDismissRequest = { showPermissionDialog = false; onBack() },
-            title = { Text("Доступ к камере") },
-            text = { Text("Для сканирования QR-кода нужен доступ к камере. Разрешить?") },
-            confirmButton = {
-                TextButton(onClick = {
-                    showPermissionDialog = false
-                    permissionLauncher.launch(Manifest.permission.CAMERA)
-                }) {
-                    Text("Разрешить")
+    // Handle scan result
+    LaunchedEffect(scanResult) {
+        when (val result = scanResult) {
+            is AuthViewModel.ScanResult.LoginApproved -> onAuthSuccess(result.user)
+            is AuthViewModel.ScanResult.LinkConsumed -> onAuthSuccess(result.user)
+            is AuthViewModel.ScanResult.Error -> { /* Show error toast */ }
+            null -> {}
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
+        // Top bar
+        TopAppBar(
+            title = { Text("Сканирование QR") },
+            navigationIcon = {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, "Назад")
                 }
             },
-            dismissButton = {
-                TextButton(onClick = { showPermissionDialog = false; onBack() }) {
-                    Text("Отклонить")
+            actions = {
+                IconButton(onClick = { torchEnabled = !torchEnabled }) {
+                    Icon(
+                        if (torchEnabled) Icons.Default.FlashlightOn else Icons.Default.FlashlightOff,
+                        "Вспышка"
+                    )
                 }
             }
         )
-    }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black)
-    ) {
+        // Camera preview
         if (hasCameraPermission) {
-            AndroidView(
-                factory = { ctx ->
-                    val previewView = PreviewView(ctx)
-                    val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
-                    cameraProviderFuture.addListener({
-                        val cameraProvider = cameraProviderFuture.get()
-                        val preview = Preview.Builder().build().also {
-                            it.setSurfaceProvider(previewView.surfaceProvider)
-                        }
-                        val imageAnalysis = ImageAnalysis.Builder()
-                            .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                            .build()
-                            .also { analysis ->
-                                analysis.setAnalyzer(Executors.newSingleThreadExecutor()) { imageProxy ->
-                                    if (processed.value) {
-                                        imageProxy.close()
-                                        return@setAnalyzer
-                                    }
-                                    val mediaImage = imageProxy.image
-                                    if (mediaImage != null) {
-                                        val image = InputImage.fromMediaImage(
-                                            mediaImage,
-                                            imageProxy.imageInfo.rotationDegrees
-                                        )
-                                        val scanner = BarcodeScanning.getClient()
-                                        scanner.process(image)
-                                            .addOnSuccessListener { barcodes ->
-                                                for (barcode in barcodes) {
-                                                    val rawValue = barcode.rawValue ?: continue
-                                                    parseQrContent(rawValue) { loginToken, linkToken ->
-                                                        onQrScanned(loginToken, linkToken)
-                                                    }
-                                                    processed.value = true
-                                                }
-                                            }
-                                            .addOnCompleteListener { imageProxy.close() }
-                                    } else {
-                                        imageProxy.close()
-                                    }
-                                }
-                            }
-                        try {
-                            cameraProvider.unbindAll()
-                            cameraProvider.bindToLifecycle(
-                                lifecycleOwner,
-                                CameraSelector.DEFAULT_BACK_CAMERA,
-                                preview,
-                                imageAnalysis
-                            )
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                        }
-                    }, ContextCompat.getMainExecutor(ctx))
-                    previewView
-                },
-                modifier = Modifier.fillMaxSize()
-            )
+            Box(modifier = Modifier.weight(1f)) {
+                AndroidView(
+                    factory = { ctx ->
+                        PreviewView(ctx).also { previewView ->
+                            val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
+                            cameraProviderFuture.addListener({
+                                val cameraProvider = cameraProviderFuture.get()
 
-            // Scan frame overlay
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 64.dp),
-                contentAlignment = Alignment.Center
-            ) {
+                                val preview = Preview.Builder().build().also {
+                                    it.surfaceProvider = previewView.surfaceProvider
+                                }
+
+                                val imageAnalysis = ImageAnalysis.Builder()
+                                    .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                                    .build()
+                                    .also { analysis ->
+                                        analysis.setAnalyzer(Executors.newSingleThreadExecutor()) { imageProxy ->
+                                            processImage(imageProxy, viewModel)
+                                        }
+                                    }
+
+                                try {
+                                    cameraProvider.unbindAll()
+                                    val camera = cameraProvider.bindToLifecycle(
+                                        lifecycleOwner, CameraSelector.DEFAULT_BACK_CAMERA,
+                                        preview, imageAnalysis
+                                    )
+                                    camera.cameraControl.enableTorch(torchEnabled)
+                                } catch (e: Exception) {
+                                    Log.e("QrScanner", "Camera bind failed", e)
+                                }
+                            }, ContextCompat.getMainExecutor(ctx))
+                        }
+                    },
+                    modifier = Modifier.fillMaxSize()
+                )
+
+                // Scan overlay
                 Box(
                     modifier = Modifier
-                        .size(260.dp)
-                        .border(
-                            3.dp,
-                            Color.White.copy(alpha = 0.8f),
-                            RoundedCornerShape(16.dp)
+                        .align(Alignment.Center)
+                        .size(280.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    // Corner markers
+                    androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize()) {
+                        val cornerLen = 40.dp.toPx()
+                        val strokeWidth = 4.dp.toPx()
+                        val w = size.width
+                        val h = size.height
+
+                        drawLine(
+                            color = androidx.compose.ui.graphics.Color.White,
+                            start = androidx.compose.ui.geometry.Offset(0f, cornerLen),
+                            end = androidx.compose.ui.geometry.Offset(0f, 0f),
+                            strokeWidth = strokeWidth
                         )
-                )
-            }
-
-            // Top bar
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .systemBarsPadding()
-                    .padding(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = onBack) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Назад",
-                        tint = Color.White
-                    )
+                        drawLine(
+                            color = androidx.compose.ui.graphics.Color.White,
+                            start = androidx.compose.ui.geometry.Offset(0f, 0f),
+                            end = androidx.compose.ui.geometry.Offset(cornerLen, 0f),
+                            strokeWidth = strokeWidth
+                        )
+                        drawLine(
+                            color = androidx.compose.ui.graphics.Color.White,
+                            start = androidx.compose.ui.geometry.Offset(w - cornerLen, 0f),
+                            end = androidx.compose.ui.geometry.Offset(w, 0f),
+                            strokeWidth = strokeWidth
+                        )
+                        drawLine(
+                            color = androidx.compose.ui.graphics.Color.White,
+                            start = androidx.compose.ui.geometry.Offset(w, 0f),
+                            end = androidx.compose.ui.geometry.Offset(w, cornerLen),
+                            strokeWidth = strokeWidth
+                        )
+                        drawLine(
+                            color = androidx.compose.ui.graphics.Color.White,
+                            start = androidx.compose.ui.geometry.Offset(0f, h - cornerLen),
+                            end = androidx.compose.ui.geometry.Offset(0f, h),
+                            strokeWidth = strokeWidth
+                        )
+                        drawLine(
+                            color = androidx.compose.ui.graphics.Color.White,
+                            start = androidx.compose.ui.geometry.Offset(0f, h),
+                            end = androidx.compose.ui.geometry.Offset(cornerLen, h),
+                            strokeWidth = strokeWidth
+                        )
+                        drawLine(
+                            color = androidx.compose.ui.graphics.Color.White,
+                            start = androidx.compose.ui.geometry.Offset(w - cornerLen, h),
+                            end = androidx.compose.ui.geometry.Offset(w, h),
+                            strokeWidth = strokeWidth
+                        )
+                        drawLine(
+                            color = androidx.compose.ui.graphics.Color.White,
+                            start = androidx.compose.ui.geometry.Offset(w, h - cornerLen),
+                            end = androidx.compose.ui.geometry.Offset(w, h),
+                            strokeWidth = strokeWidth
+                        )
+                    }
                 }
-                Spacer(modifier = Modifier.weight(1f))
-            }
 
-            // Bottom text
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 48.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
+                // Hint text
                 Text(
-                    title,
-                    color = Color.White,
-                    style = MaterialTheme.typography.titleMedium
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    subtitle,
-                    color = Color.White.copy(alpha = 0.7f),
-                    style = MaterialTheme.typography.bodyMedium
+                    "Наведите камеру на QR-код",
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(32.dp),
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = androidx.compose.ui.graphics.Color.White
                 )
             }
         } else {
-            CircularProgressIndicator(
-                modifier = Modifier.align(Alignment.Center),
-                color = Color.White
-            )
+            // No permission
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Требуется доступ к камере",
+                        fontSize = 18.sp, fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("Для сканирования QR-кода необходим доступ к камере",
+                        fontSize = 14.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Button(onClick = {
+                        // Request permission (handled by Activity)
+                    }) {
+                        Text("Предоставить доступ")
+                    }
+                }
+            }
         }
     }
 }
 
-private fun parseQrContent(
-    rawText: String,
-    callback: (loginToken: String, linkToken: String) -> Unit
-) {
-    try {
-        val uri = java.net.URI(rawText)
-        val query = uri.query ?: ""
-        val params = query.split("&").associate { param ->
-            val parts = param.split("=", limit = 2)
-            if (parts.size == 2) parts[0] to URLDecoder.decode(parts[1], "UTF-8")
-            else parts[0] to ""
-        }
-        val linkToken = params["qr_link"]
-        val loginToken = params["qr"]
-        if (!linkToken.isNullOrEmpty()) {
-            callback("", linkToken)
-        } else if (!loginToken.isNullOrEmpty()) {
-            callback(loginToken, "")
-        }
-    } catch (_: Exception) {
-        // Try raw token
-        if (Regex("^[0-9a-f]{40,}$", RegexOption.IGNORE_CASE).matches(rawText.trim())) {
-            callback(rawText.trim(), "")
-        }
+private fun processImage(imageProxy: ImageProxy, viewModel: AuthViewModel) {
+    val mediaImage = imageProxy.image
+    if (mediaImage != null) {
+        val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
+        val scanner = BarcodeScanning.getClient()
+        scanner.process(image)
+            .addOnSuccessListener { barcodes ->
+                for (barcode in barcodes) {
+                    val value = barcode.rawValue ?: continue
+                    Log.d("QrScanner", "Found barcode: $value")
+                    if (value.contains("qr=") || value.contains("qr_link=") ||
+                        (value.length >= 32 && value.matches(Regex("[a-fA-F0-9]+")))
+                    ) {
+                        viewModel.handleQrScan(value)
+                        break
+                    }
+                }
+            }
+            .addOnCompleteListener { imageProxy.close() }
+    } else {
+        imageProxy.close()
     }
 }

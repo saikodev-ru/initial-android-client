@@ -1,8 +1,5 @@
 package ru.saikodev.initial.ui.auth
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -10,193 +7,166 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.systemBarsPadding
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.PersonOutline
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import ru.saikodev.initial.domain.model.User
 
 @Composable
 fun ProfileSetupScreen(
-    onComplete: () -> Unit,
-    viewModel: AuthViewModel = hiltViewModel()
+    viewModel: AuthViewModel,
+    email: String,
+    onProfileCreated: (User) -> Unit
 ) {
     var nickname by remember { mutableStateOf("") }
     var signalId by remember { mutableStateOf("") }
-    val isLoading by viewModel.isLoading.collectAsState()
-    val error by viewModel.error.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val error by viewModel.error.collectAsStateWithLifecycle()
+    val verifiedUser by viewModel.verifiedUser.collectAsStateWithLifecycle()
 
-    Box(
+    val isValidNickname = nickname.isNotBlank() && nickname.length >= 2
+    val isValidSignalId = signalId.isBlank() || (signalId.length >= 3)
+    val isFormValid = isValidNickname && isValidSignalId
+
+    LaunchedEffect(verifiedUser) {
+        verifiedUser?.let { onProfileCreated(it) }
+    }
+
+    Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .systemBarsPadding()
+            .padding(horizontal = 24.dp)
+            .verticalScroll(rememberScrollState()),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Column(
+        Spacer(modifier = Modifier.height(64.dp))
+
+        Text(
+            text = "Создайте профиль",
+            fontSize = 28.sp,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onBackground
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(
+            text = "Введите имя и Initial ID для вашего аккаунта",
+            fontSize = 14.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        // Nickname field
+        OutlinedTextField(
+            value = nickname,
+            onValueChange = {
+                if (it.length <= 64) {
+                    nickname = it
+                }
+                viewModel.clearError()
+            },
+            label = { Text("Имя") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+            shape = MaterialTheme.shapes.medium,
+            supportingText = {
+                if (nickname.isNotEmpty() && nickname.length < 2) {
+                    Text("Минимум 2 символа")
+                }
+            }
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Signal ID field
+        OutlinedTextField(
+            value = signalId,
+            onValueChange = { value ->
+                if (value.all { it.isLetterOrDigit() || it == '_' } && value.length <= 30) {
+                    signalId = value
+                }
+                viewModel.clearError()
+            },
+            label = { Text("Initial ID") },
+            prefix = { Text("@") },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii),
+            modifier = Modifier.fillMaxWidth(),
+            shape = MaterialTheme.shapes.medium,
+            supportingText = {
+                if (signalId.isBlank()) {
+                    Text("Необязательно")
+                } else if (signalId.length < 3) {
+                    Text("Минимум 3 символа (a-z, 0-9, _)")
+                }
+            }
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Email display (read-only context)
+        Text(
+            text = "Аккаунт: $email",
+            fontSize = 13.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.align(Alignment.Start)
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Error message
+        error?.let {
+            Text(
+                text = it,
+                color = MaterialTheme.colorScheme.error,
+                fontSize = 14.sp,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+        }
+
+        // Submit button
+        Button(
+            onClick = {
+                viewModel.createProfile(
+                    nickname = nickname,
+                    signalId = signalId.ifBlank { null },
+                    email = email
+                )
+            },
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp)
-                .padding(top = 48.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .height(52.dp),
+            enabled = isFormValid && !isLoading,
+            shape = MaterialTheme.shapes.medium
         ) {
-            // ─── Title ───
-            Text(
-                text = "Ваш профиль",
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // ─── Subtitle ───
-            Text(
-                text = "Как вас будут видеть другие",
-                fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            // ─── Avatar placeholder ───
-            Box(
-                modifier = Modifier
-                    .size(80.dp)
-                    .clip(CircleShape)
-                    .background(
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
-                    )
-                    .border(
-                        width = 2.dp,
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                        shape = CircleShape
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                if (nickname.isNotEmpty()) {
-                    Text(
-                        text = nickname.trim().take(1).uppercase(),
-                        fontSize = 32.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Default.PersonOutline,
-                        contentDescription = null,
-                        modifier = Modifier.size(36.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            // ─── Error message ───
-            if (error != null) {
-                Text(
-                    text = error!!,
-                    fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.error,
-                    textAlign = TextAlign.Center
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    strokeWidth = 2.dp
                 )
-                Spacer(modifier = Modifier.height(12.dp))
-            }
-
-            // ─── Nickname Input ───
-            OutlinedTextField(
-                value = nickname,
-                onValueChange = { nickname = it },
-                label = { Text("Имя") },
-                placeholder = { Text("Ваше имя") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    focusedLabelColor = MaterialTheme.colorScheme.primary,
-                    cursorColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outline
-                )
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // ─── Signal ID Input ───
-            OutlinedTextField(
-                value = signalId,
-                onValueChange = { signalId = it },
-                label = { Text("Signal ID (необязательно)") },
-                placeholder = { Text("Ваш Signal ID") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    focusedLabelColor = MaterialTheme.colorScheme.primary,
-                    cursorColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outline
-                )
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // ─── Start Button ───
-            Button(
-                onClick = {
-                    viewModel.createProfile(
-                        nickname.trim(),
-                        signalId.trim().ifBlank { null }
-                    ) { onComplete() }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp),
-                shape = RoundedCornerShape(12.dp),
-                enabled = nickname.isNotBlank() && !isLoading,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f),
-                    contentColor = MaterialTheme.colorScheme.onPrimary
-                )
-            ) {
-                if (isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        strokeWidth = 2.dp
-                    )
-                } else {
-                    Text(
-                        text = "Начать",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
+            } else {
+                Text("Продолжить", fontSize = 16.sp)
             }
         }
     }

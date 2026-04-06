@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import ru.saikodev.initial.domain.model.Chat
 import ru.saikodev.initial.ui.theme.*
+import ru.saikodev.initial.util.MediaUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

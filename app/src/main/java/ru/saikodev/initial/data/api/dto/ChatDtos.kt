@@ -62,6 +62,7 @@ data class ReactionDto(
 @Serializable
 data class GetMessagesResponse(
     val ok: Boolean = false,
+    val message: String? = null,
     val messages: List<MessageDto>? = null,
     val chats: List<ChatDto>? = null,
     val deleted_ids: List<Int>? = null,
@@ -107,11 +108,16 @@ data class DeleteMessageResponse(val ok: Boolean = false, val message: String? =
 data class ReactMessageRequest(val message_id: Int, val emoji: String)
 
 @Serializable
-data class ReactMessageResponse(val ok: Boolean = false, val reactions: List<ReactionDto>? = null)
+data class ReactMessageResponse(
+    val ok: Boolean = false,
+    val message: String? = null,
+    val reactions: List<ReactionDto>? = null
+)
 
 @Serializable
 data class SearchUserResponse(
     val ok: Boolean = false,
+    val message: String? = null,
     val results: List<UserDto>? = null
 )
 

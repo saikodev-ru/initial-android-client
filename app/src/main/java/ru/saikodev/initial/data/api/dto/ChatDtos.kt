@@ -1,5 +1,5 @@
 package ru.saikodev.initial.data.api.dto
-import kotlinx.serialization.SerialName
+
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -41,23 +41,22 @@ data class MessageDto(
     val nickname: String? = null,
     val avatar_url: String? = null,
     val reply_to: Int? = null,
+    val reply_body: String? = null,
+    val reply_nickname: String? = null,
     val media_url: String? = null,
-    val media_type: String? = null, // "image", "video", "voice", "document"
+    val media_type: String? = null,
     val media_spoiler: Int? = null,
     val media_file_name: String? = null,
     val media_file_size: Long? = null,
     val media_file_ext: String? = null,
     val batch_id: String? = null,
+    val voice_duration: Int? = null,
     val reactions: List<ReactionDto>? = null,
     val patch_only: Int? = null
 )
 
 @Serializable
-data class ReactionDto(
-    val emoji: String = "",
-    val count: Int = 0,
-    val by_me: Boolean = false
-)
+data class ReactionDto(val emoji: String = "", val count: Int = 0, val by_me: Boolean = false)
 
 @Serializable
 data class GetMessagesResponse(
@@ -115,21 +114,13 @@ data class ReactMessageResponse(
 )
 
 @Serializable
-data class SearchUserResponse(
-    val ok: Boolean = false,
-    val message: String? = null,
-    val users: List<UserDto>? = null
-)
+data class GetReactionsResponse(val ok: Boolean = false, val reactions: Map<Int, List<ReactionDto>>? = null)
 
 @Serializable
-data class DeleteChatRequest(val chat_id: Int)
+data class SearchUserResponse(val ok: Boolean = false, val message: String? = null, val users: List<UserDto>? = null)
 
 @Serializable
-data class PinChatRequest(
-    val chat_id: Int,
-    val pin: Boolean? = null,
-    val reorder: List<Int>? = null
-)
+data class PinChatRequest(val chat_id: Int, val pin: Boolean? = null, val reorder: List<Int>? = null)
 
 @Serializable
 data class PinChatResponse(val ok: Boolean = false, val message: String? = null)
@@ -138,11 +129,10 @@ data class PinChatResponse(val ok: Boolean = false, val message: String? = null)
 data class MuteChatRequest(val chat_id: Int)
 
 @Serializable
-data class MuteChatResponse(
-    val ok: Boolean = false,
-    val is_muted: Int? = null,
-    val message: String? = null
-)
+data class MuteChatResponse(val ok: Boolean = false, val is_muted: Int? = null, val message: String? = null)
+
+@Serializable
+data class DeleteChatRequest(val chat_id: Int)
 
 @Serializable
 data class DeleteChatResponse(val ok: Boolean = false, val message: String? = null)
@@ -153,12 +143,6 @@ data class UploadMediaResponse(
     val url: String? = null,
     val media_type: String? = null,
     val message: String? = null
-)
-
-@Serializable
-data class GetReactionsResponse(
-    val ok: Boolean = false,
-    val reactions: Map<Int, List<ReactionDto>>? = null
 )
 
 @Serializable
@@ -174,29 +158,4 @@ data class LinkPreviewResponse(
 )
 
 @Serializable
-data class GetMeResponse(val ok: Boolean = false, val user: UserDto? = null)
-
-@Serializable
-data class SessionsResponse(
-    val ok: Boolean = false,
-    val sessions: List<SessionDto>? = null
-)
-
-@Serializable
-data class SessionDto(
-    val id: String? = null,
-    val device: String? = null,
-    val ip: String? = null,
-    val last_active: Long? = null,
-    val is_current: Boolean? = null
-)
-
-@Serializable
 data class UpdatePresenceResponse(val ok: Boolean = false)
-
-@Serializable
-data class ApiError(
-    val ok: Boolean = false,
-    val error: String? = null,
-    val message: String? = null
-)

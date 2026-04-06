@@ -1,5 +1,6 @@
 package ru.saikodev.initial.ui.chat
 
+import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -10,44 +11,40 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import ru.saikodev.initial.domain.model.Chat
 import ru.saikodev.initial.domain.model.Message
-import ru.saikodev.initial.domain.repository.AuthRepository
 import ru.saikodev.initial.domain.repository.ChatRepository
 import javax.inject.Inject
 
 @HiltViewModel
 class ChatViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
-    private val chatRepository: ChatRepository,
-    private val authRepository: AuthRepository
+    private val chatRepository: ChatRepository
 ) : ViewModel() {
 
-    val chatId: Int = savedStateHandle["chatId"] ?: 0
+    private val chatId: Int = savedStateHandle["chatId"] ?: 0
+    private val signalId: String? = savedStateHandle["signalId"]
+    private val partnerName: String? = savedStateHandle["partnerName"]
+
+    val chatIdValue: Int get() = chatId
+    val signalIdValue: String? get() = signalId
+    val partnerNameValue: String? get() = partnerName
 
     private val _messages = MutableStateFlow<List<Message>>(emptyList())
     val messages: StateFlow<List<Message>> = _messages
 
-    private val _chat = MutableStateFlow<Chat?>(null)
-    val chat: StateFlow<Chat?> = _chat
-
-    private val _messageText = MutableStateFlow("")
-    val messageText: StateFlow<String> = _messageText
-
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
 
-    private val _isLoadingMore = MutableStateFlow(false)
-    val isLoadingMore: StateFlow<Boolean> = _isLoadingMore
-
-    private val _replyTo = MutableStateFlow<Message?>(null)
-    val replyTo: StateFlow<Message?> = _replyTo
+    private val _error = MutableStateFlow<String?>(null)
+    val error: StateFlow<String?> = _error
 
     private val _isSending = MutableStateFlow(false)
     val isSending: StateFlow<Boolean> = _isSending
 
-    private var lastMessageId = 0
-    private var hasMore = true
+    private val _chatInfo = MutableStateFlow<Chat?>(null)
+    val chatInfo: StateFlow<Chat?> = _chatInfo
+
     private var pollJob: Job? = null
-    private val currentUserId = authRepository.getSavedUser()?.id ?: 0
+    private var lastMessageId: Int = 0
 
     init {
         loadInitialMessages()
@@ -57,79 +54,72 @@ class ChatViewModel @Inject constructor(
     private fun loadInitialMessages() {
         viewModelScope.launch {
             _isLoading.value = true
-            val result = chatRepository.getMessages(chatId, init = true)
-            _isLoading.value = false
-            if (result.isSuccess) {
-                val data = result.getOrNull()!!
-                _messages.value = data.messages
-                lastMessageId = data.messages.maxOfOrNull { it.id } ?: 0
-                if (data.chats != null) {
-                    _chat.value = data.chats.find { it.chatId == chatId }
+            try {
+                if (chatId > 0) {
+                    val result = chatRepository.getMessages(chatId = chatId, init = true, afterId = null)
+                    if (result.isSuccess) {
+                        val data = result.getOrNull()!!
+                        _messages.value = data.messages
+                        lastMessageId = data.messages.lastOrNull()?.id ?: 0
+                        data.chats?.firstOrNull { it.chatId == chatId }?.let { _chatInfo.value = it }
+                        Log.d("ChatVM", "Loaded ${data.messages.size} messages for chat $chatId")
+                    } else {
+                        _error.value = result.exceptionOrNull()?.message
+                    }
                 }
+            } catch (e: Exception) {
+                Log.e("ChatVM", "loadInitialMessages failed", e)
+                _error.value = e.message
+            } finally {
+                _isLoading.value = false
             }
         }
     }
 
     private fun startPolling() {
+        if (chatId <= 0) return
         pollJob?.cancel()
         pollJob = viewModelScope.launch {
             while (true) {
                 delay(3000)
-                if (_messageText.value.isNotBlank()) continue // Don't poll while typing
-                val result = chatRepository.getMessages(chatId, init = false, afterId = lastMessageId)
-                if (result.isSuccess) {
-                    val data = result.getOrNull()!!
-                    // Handle deletions
-                    if (data.deletedIds.isNotEmpty()) {
-                        _messages.value = _messages.value.filter { it.id !in data.deletedIds }
-                    }
-                    // Handle new messages
-                    if (data.messages.isNotEmpty()) {
-                        val currentIds = _messages.value.map { it.id }.toSet()
-                        val newMsgs = data.messages.filter { it.id !in currentIds }
-                        if (newMsgs.isNotEmpty()) {
-                            _messages.value = _messages.value + newMsgs
+                try {
+                    val result = chatRepository.getMessages(
+                        chatId = chatId, init = false, afterId = lastMessageId
+                    )
+                    if (result.isSuccess) {
+                        val data = result.getOrNull()!!
+                        if (data.messages.isNotEmpty()) {
+                            _messages.value = _messages.value + data.messages
+                            lastMessageId = data.messages.lastOrNull()?.id ?: lastMessageId
                         }
-                        lastMessageId = data.messages.maxOfOrNull { it.id } ?: lastMessageId
+                        // Remove deleted messages
+                        if (data.deletedIds.isNotEmpty()) {
+                            val deletedSet = data.deletedIds.toSet()
+                            _messages.value = _messages.value.filter { it.id !in deletedSet }
+                        }
+                        // Update chat info
+                        data.chats?.firstOrNull { it.chatId == chatId }?.let { _chatInfo.value = it }
                     }
-                }
+                } catch (_: Exception) {}
             }
         }
     }
 
-    fun loadMoreMessages() {
-        if (_isLoadingMore.value || !hasMore || _messages.value.isEmpty()) return
-        viewModelScope.launch {
-            _isLoadingMore.value = true
-            val minId = _messages.value.minOfOrNull { it.id } ?: return@launch
-            val result = chatRepository.loadHistory(chatId, minId)
-            _isLoadingMore.value = false
-            if (result.isSuccess) {
-                val older = result.getOrNull()!!.messages
-                if (older.isNotEmpty()) {
-                    _messages.value = older + _messages.value
-                }
-                if (older.size < 50) hasMore = false
-            }
-        }
-    }
-
-    fun sendMessage() {
-        val text = _messageText.value.trim()
-        if (text.isEmpty()) return
-        val chat = _chat.value ?: return
-        val toSignalId = chat.partnerSignalId ?: return
-
-        val replyId = _replyTo.value?.id
-        _replyTo.value = null
+    fun sendMessage(text: String) {
+        if (text.isBlank() || chatId <= 0) return
+        val targetSignalId = signalId ?: return
 
         viewModelScope.launch {
             _isSending.value = true
-            val result = chatRepository.sendMessage(toSignalId, text, replyId)
-            _isSending.value = false
-            if (result.isSuccess) {
-                _messageText.value = ""
-                // The message will come through polling
+            try {
+                val result = chatRepository.sendMessage(targetSignalId, text.trim(), null)
+                if (result.isFailure) {
+                    _error.value = result.exceptionOrNull()?.message
+                }
+            } catch (e: Exception) {
+                _error.value = e.message
+            } finally {
+                _isSending.value = false
             }
         }
     }
@@ -137,16 +127,25 @@ class ChatViewModel @Inject constructor(
     fun deleteMessage(messageId: Int) {
         viewModelScope.launch {
             chatRepository.deleteMessage(messageId)
-            _messages.value = _messages.value.filter { it.id != messageId }
         }
     }
 
-    fun setReplyTo(message: Message?) {
-        _replyTo.value = message
+    fun editMessage(messageId: Int, newText: String) {
+        viewModelScope.launch {
+            chatRepository.editMessage(messageId, newText)
+        }
     }
 
-    fun onMessageTextChanged(text: String) {
-        _messageText.value = text
+    fun loadMoreMessages() {
+        if (chatId <= 0 || _messages.value.isEmpty()) return
+        viewModelScope.launch {
+            val oldestId = _messages.value.firstOrNull()?.id ?: return@launch
+            val result = chatRepository.loadHistory(chatId, oldestId)
+            if (result.isSuccess) {
+                val older = result.getOrNull()!!.messages
+                _messages.value = older + _messages.value
+            }
+        }
     }
 
     override fun onCleared() {

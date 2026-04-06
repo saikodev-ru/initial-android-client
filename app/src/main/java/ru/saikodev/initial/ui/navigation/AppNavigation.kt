@@ -1,178 +1,222 @@
 package ru.saikodev.initial.ui.navigation
 
+import android.util.Log
+import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
 import androidx.navigation.NavType
+import androidx.navigation.navArgument
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Scaffold
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
-import ru.saikodev.initial.domain.model.User
-import ru.saikodev.initial.ui.auth.AuthViewModel
-import ru.saikodev.initial.ui.auth.CodeVerificationScreen
-import ru.saikodev.initial.ui.auth.EmailLoginScreen
-import ru.saikodev.initial.ui.auth.ProfileSetupScreen
-import ru.saikodev.initial.ui.auth.QrLoginScreen
-import ru.saikodev.initial.ui.chat.ChatScreen
+import ru.saikodev.initial.ui.auth.*
 import ru.saikodev.initial.ui.chatlist.ChatListScreen
-import ru.saikodev.initial.ui.components.QrScannerScreen
-import ru.saikodev.initial.ui.settings.MainViewModel
+import ru.saikodev.initial.ui.chatlist.ChatListViewModel
+import ru.saikodev.initial.ui.chat.ChatScreen
+import ru.saikodev.initial.ui.chat.ChatViewModel
 import ru.saikodev.initial.ui.settings.SettingsScreen
+import ru.saikodev.initial.ui.settings.SettingsViewModel
+import ru.saikodev.initial.ui.components.QrScannerScreen
+import ru.saikodev.initial.domain.model.User
 
-/**
- * Main navigation for the Initial messenger app.
- *
- * Navigation flow:
- * - Auth screen shows QrLoginScreen (which includes email login button)
- * - After QR approved: if user has signal_id → ChatList, else → ProfileSetup
- * - After email code verified: if user has signal_id → ChatList, else → ProfileSetup
- * - After profile setup → ChatList
- */
 @Composable
-fun AppNavigation() {
+fun AppNavigation(
+    isLoggedIn: Boolean,
+    onAuthSuccess: (User) -> Unit
+) {
     val navController = rememberNavController()
-    val mainViewModel: MainViewModel = hiltViewModel()
-    val isLoggedIn by mainViewModel.isLoggedIn.collectAsState()
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
 
-    // Helper: navigate based on whether user has signal_id
-    fun navigateAfterAuth(user: User?) {
-        if (user?.signalId != null && user.signalId.isNotBlank()) {
-            // Existing user with signal_id → go to ChatList
-            navController.navigate(Screen.ChatList.route) {
-                popUpTo(0) { inclusive = true }
-            }
-        } else {
-            // New user without signal_id → go to ProfileSetup
-            navController.navigate(Screen.ProfileSetup.route) {
-                popUpTo(Screen.Auth.route) { inclusive = true }
-            }
-        }
+    val startDestination = if (isLoggedIn) Screen.ChatList.route else Screen.Auth.route
+
+    LaunchedEffect(currentRoute) {
+        Log.d("Nav", "Current route: $currentRoute")
     }
 
     NavHost(
         navController = navController,
-        startDestination = if (isLoggedIn) Screen.ChatList.route else Screen.Auth.route,
-        enterTransition = {
-            slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(300))
-        },
-        exitTransition = {
-            slideOutHorizontally(targetOffsetX = { -it / 3 }, animationSpec = tween(300))
-        },
-        popEnterTransition = {
-            slideInHorizontally(initialOffsetX = { -it / 3 }, animationSpec = tween(300))
-        },
-        popExitTransition = {
-            slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(300))
-        }
+        startDestination = startDestination,
+        modifier = Modifier,
+        enterTransition = { slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Left, tween(300)) },
+        exitTransition = { slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Left, tween(300)) },
+        popEnterTransition = { slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Right, tween(300)) },
+        popExitTransition = { slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Right, tween(300)) }
     ) {
-        // ─── Auth ───
+        // ── Auth ──
         composable(Screen.Auth.route) {
-            QrLoginScreen(
-                onLoginSuccess = { user ->
-                    navigateAfterAuth(user)
+            val viewModel: AuthViewModel = hiltViewModel()
+            AuthScreen(
+                viewModel = viewModel,
+                onEmailLogin = { navController.navigate(Screen.EmailLogin.route) },
+                onQrScan = { loginToken, linkToken ->
+                    navController.navigate(Screen.QrScanner.createRoute(loginToken, linkToken))
                 },
-                onEmailLogin = {
-                    navController.navigate(Screen.EmailLogin.route)
-                },
-                onQrScan = {
-                    navController.navigate(Screen.QrScanner.route)
+                onAuthSuccess = { user ->
+                    if (user.signalId.isNullOrBlank()) {
+                        navController.navigate(Screen.ProfileSetup.createRoute(user.email))
+                    } else {
+                        navController.navigate(Screen.ChatList.route) {
+                            popUpTo(Screen.Auth.route) { inclusive = true }
+                        }
+                    }
+                    onAuthSuccess(user)
                 }
             )
         }
 
+        // ── Email Login ──
         composable(Screen.EmailLogin.route) {
+            val viewModel: AuthViewModel = hiltViewModel()
             EmailLoginScreen(
+                viewModel = viewModel,
+                onBack = { navController.popBackStack() },
                 onCodeSent = { email, via ->
-                    navController.navigate(Screen.CodeVerification.createRoute(email, via))
-                },
-                onBack = { navController.popBackStack() }
+                    navController.navigate(Screen.CodeVerification.createRoute(email, via)) {
+                        popUpTo(Screen.Auth.route)
+                    }
+                }
             )
         }
 
+        // ── Code Verification ──
         composable(
             route = Screen.CodeVerification.route,
             arguments = listOf(
                 navArgument("email") { type = NavType.StringType },
                 navArgument("via") { type = NavType.StringType }
             )
-        ) { backStackEntry ->
-            val email = backStackEntry.arguments?.getString("email") ?: ""
-            val via = backStackEntry.arguments?.getString("via") ?: "email"
+        ) {
+            val email = it.arguments?.getString("email") ?: ""
+            val viewModel: AuthViewModel = hiltViewModel()
             CodeVerificationScreen(
+                viewModel = viewModel,
                 email = email,
-                via = via,
+                onBack = { navController.popBackStack() },
                 onVerified = { user ->
-                    navigateAfterAuth(user)
+                    if (user.signalId.isNullOrBlank()) {
+                        navController.navigate(Screen.ProfileSetup.createRoute(user.email)) {
+                            popUpTo(Screen.Auth.route) { inclusive = true }
+                        }
+                    } else {
+                        navController.navigate(Screen.ChatList.route) {
+                            popUpTo(Screen.Auth.route) { inclusive = true }
+                        }
+                        onAuthSuccess(user)
+                    }
+                }
+            )
+        }
+
+        // ── Profile Setup ──
+        composable(
+            route = Screen.ProfileSetup.route,
+            arguments = listOf(navArgument("email") { type = NavType.StringType })
+        ) {
+            val email = it.arguments?.getString("email") ?: ""
+            val viewModel: AuthViewModel = hiltViewModel()
+            ProfileSetupScreen(
+                viewModel = viewModel,
+                email = email,
+                onProfileCreated = { user ->
+                    navController.navigate(Screen.ChatList.route) {
+                        popUpTo(Screen.Auth.route) { inclusive = true }
+                    }
+                    onAuthSuccess(user)
+                }
+            )
+        }
+
+        // ── QR Scanner ──
+        composable(
+            route = Screen.QrScanner.route,
+            arguments = listOf(
+                navArgument("loginToken") {
+                    type = NavType.StringType
+                    defaultValue = "null"
+                    nullable = true
                 },
+                navArgument("linkToken") {
+                    type = NavType.StringType
+                    defaultValue = "null"
+                    nullable = true
+                }
+            )
+        ) {
+            val loginToken = it.arguments?.getString("loginToken")?.takeIf { it != "null" }
+            val linkToken = it.arguments?.getString("linkToken")?.takeIf { it != "null" }
+            val viewModel: AuthViewModel = hiltViewModel()
+            QrScannerScreen(
+                viewModel = viewModel,
+                loginToken = loginToken,
+                linkToken = linkToken,
+                onBack = { navController.popBackStack() },
+                onAuthSuccess = { user ->
+                    navController.navigate(Screen.ChatList.route) {
+                        popUpTo(Screen.Auth.route) { inclusive = true }
+                    }
+                    onAuthSuccess(user)
+                }
+            )
+        }
+
+        // ── Chat List ──
+        composable(Screen.ChatList.route) {
+            val viewModel: ChatListViewModel = hiltViewModel()
+            ChatListScreen(
+                viewModel = viewModel,
+                onChatClick = { chatId, signalId, partnerName ->
+                    navController.navigate(Screen.Chat.createRoute(chatId, signalId, partnerName))
+                },
+                onNewChat = { signalId, partnerName ->
+                    navController.navigate(Screen.Chat.createRoute(0, signalId, partnerName))
+                },
+                onSettingsClick = { navController.navigate(Screen.Settings.route) },
+                onQrScan = { loginToken, linkToken ->
+                    navController.navigate(Screen.QrScanner.createRoute(loginToken, linkToken))
+                }
+            )
+        }
+
+        // ── Chat ──
+        composable(
+            route = Screen.Chat.route,
+            arguments = listOf(
+                navArgument("chatId") { type = NavType.IntType },
+                navArgument("signalId") {
+                    type = NavType.StringType
+                    defaultValue = "null"
+                },
+                navArgument("partnerName") {
+                    type = NavType.StringType
+                    defaultValue = "null"
+                }
+            )
+        ) {
+            val viewModel: ChatViewModel = hiltViewModel()
+            ChatScreen(
+                viewModel = viewModel,
                 onBack = { navController.popBackStack() }
             )
         }
 
-        composable(Screen.ProfileSetup.route) {
-            ProfileSetupScreen(
-                onComplete = {
-                    navController.navigate(Screen.ChatList.route) {
+        // ── Settings ──
+        composable(Screen.Settings.route) {
+            val viewModel: SettingsViewModel = hiltViewModel()
+            SettingsScreen(
+                viewModel = viewModel,
+                onBack = { navController.popBackStack() },
+                onLogout = {
+                    navController.navigate(Screen.Auth.route) {
                         popUpTo(0) { inclusive = true }
                     }
                 }
             )
-        }
-
-        // ─── QR Scanner ───
-        composable(Screen.QrScanner.route) {
-            val viewModel: AuthViewModel = hiltViewModel()
-            QrScannerScreen(
-                onQrScanned = { loginToken, linkToken ->
-                    navController.popBackStack()
-                    viewModel.handleQrScan(loginToken, linkToken) { user ->
-                        if (user != null) {
-                            navigateAfterAuth(user)
-                        }
-                    }
-                },
-                onBack = { navController.popBackStack() }
-            )
-        }
-
-        // ─── Main ───
-        composable(Screen.ChatList.route) {
-            val chatListViewModel: ru.saikodev.initial.ui.chatlist.ChatListViewModel = hiltViewModel()
-            ChatListScreen(
-                onChatClick = { chatId ->
-                    navController.navigate(Screen.Chat.createRoute(chatId))
-                },
-                onSettingsClick = {
-                    navController.navigate(Screen.Settings.route)
-                },
-                onNewChat = {
-                    // TODO: Open new chat dialog / contact picker
-                },
-                onUserClick = { signalId ->
-                    chatListViewModel.openChatWithUser(signalId) { chatId ->
-                        navController.navigate(Screen.Chat.createRoute(chatId))
-                    }
-                }
-            )
-        }
-
-        composable(
-            route = Screen.Chat.route,
-            arguments = listOf(navArgument("chatId") { type = NavType.IntType })
-        ) { backStackEntry ->
-            val chatId = backStackEntry.arguments?.getInt("chatId") ?: 0
-            ChatScreen(
-                chatId = chatId,
-                onBack = { navController.popBackStack() }
-            )
-        }
-
-        composable(Screen.Settings.route) {
-            SettingsScreen(onBack = { navController.popBackStack() })
         }
     }
 }

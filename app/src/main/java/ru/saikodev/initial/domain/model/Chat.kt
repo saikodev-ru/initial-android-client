@@ -1,5 +1,9 @@
 package ru.saikodev.initial.domain.model
 
+import android.os.Parcelable
+import kotlinx.parcelize.Parcelize
+
+@Parcelize
 data class Chat(
     val chatId: Int = 0,
     val partnerId: Int? = null,
@@ -22,15 +26,5 @@ data class Chat(
     val lastTime: Long? = null,
     val lastMediaType: String? = null,
     val lastSenderId: Int? = null,
-    val isRead: Int? = null
-) {
-    val displayName: String
-        get() = when {
-            isSavedMsgs -> "Заметки"
-            partnerIsSystem -> "Initial"
-            else -> partnerName ?: "@${partnerSignalId ?: ""}"
-        }
-
-    val isOnline: Boolean
-        get() = partnerLastSeen?.let { (System.currentTimeMillis() / 1000) - it < 90 } ?: false
-}
+    val isRead: Boolean = false
+) : Parcelable

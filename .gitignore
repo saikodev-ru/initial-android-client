@@ -56,3 +56,5 @@ Thumbs.db
 
 # Profiling
 *.hprof
+initial-android-client/
+worklog.md

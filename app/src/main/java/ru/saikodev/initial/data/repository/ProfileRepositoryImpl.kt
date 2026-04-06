@@ -70,5 +70,5 @@ private fun resolveMediaUrl(url: String?, token: String): String? {
 private fun UserDto.toDomain(token: String = "") = User(
     id = id, email = email, nickname = nickname,
     signalId = signal_id, avatarUrl = resolveMediaUrl(avatar_url, token),
-    bio = bio, isVerified = is_verified, isTeamSignal = is_team_signal
+    bio = bio, isVerified = (is_verified ?: 0) == 1, isTeamSignal = (is_team_signal ?: 0) == 1
 )

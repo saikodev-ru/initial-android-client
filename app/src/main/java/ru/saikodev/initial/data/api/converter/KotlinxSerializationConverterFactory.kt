@@ -1,5 +1,6 @@
 package ru.saikodev.initial.data.api.converter
 
+import android.util.Log
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
@@ -12,11 +13,16 @@ import java.lang.reflect.ParameterizedType
 import java.lang.reflect.Type
 
 /**
- * A Retrofit converter factory that uses kotlinx.serialization for JSON serialization/deserialization.
+ * Retrofit converter factory using kotlinx.serialization.
  *
- * Kotlin compiler generates a static bridge method `serializer()` on the @Serializable class itself
- * (not on the Companion). We use that static method to obtain the KSerializer instance.
- * Also supports ParameterizedType (e.g. List<ChatDto>) by resolving the raw type.
+ * Kotlin serialization plugin generates the serializer accessor in the companion object.
+ * Depending on the Kotlin/compiler-plugin version, it may be:
+ *   - A function `serializer()` on the Companion instance
+ *   - A property getter `getSerializer()` on the Companion instance
+ *   - A backing field `serializer` on the Companion instance
+ *   - The Companion itself may implement KSerializer
+ *
+ * We try all strategies to ensure compatibility across versions.
  */
 class KotlinxSerializationConverterFactory(
     private val json: Json = Json { ignoreUnknownKeys = true }
@@ -41,13 +47,6 @@ class KotlinxSerializationConverterFactory(
         return KotlinxSerializationRequestBodyConverter(json, serializer)
     }
 
-    /**
-     * Resolve the kotlinx.serialization KSerializer for a given java.lang.reflect.Type.
-     *
-     * For a @Serializable class Foo, the Kotlin compiler plugin generates:
-     * - A static method `Foo.serializer()` returning KSerializer<Foo>
-     * We call this static method directly on the outer class.
-     */
     @Suppress("UNCHECKED_CAST")
     private fun resolveSerializer(type: Type): KSerializer<Any> {
         val clazz = when (type) {
@@ -60,24 +59,80 @@ class KotlinxSerializationConverterFactory(
             else -> throw IllegalArgumentException("Cannot resolve serializer for type: $type")
         }
 
-        return try {
-            // The Kotlin serialization compiler plugin generates a static bridge method
-            // `public static KSerializer<Foo> serializer()` on the @Serializable class itself.
-            val method = clazz.getDeclaredMethod("serializer")
-            method.isAccessible = true
-            method.invoke(null) as KSerializer<Any>
-        } catch (e: NoSuchMethodException) {
-            throw SerializationException(
-                "No serializer() method found for ${clazz.simpleName}. " +
-                "Ensure the class is annotated with @Serializable."
-            )
-        } catch (e: SerializationException) {
-            throw e
-        } catch (e: Exception) {
-            throw SerializationException(
-                "Failed to resolve serializer for ${clazz.simpleName}: ${e.message}", e
-            )
+        // Get the Companion instance from the static "Companion" field on the class
+        val companionInstance: Any? = try {
+            val companionField = clazz.getDeclaredField("Companion")
+            companionField.isAccessible = true
+            companionField.get(null)
+        } catch (e: NoSuchFieldException) {
+            null
         }
+
+        if (companionInstance != null) {
+            // Strategy 1: Companion may directly implement KSerializer
+            if (companionInstance is KSerializer<*>) {
+                return companionInstance as KSerializer<Any>
+            }
+
+            val companionClass = companionInstance.javaClass
+
+            // Strategy 2: Function named "serializer()" (some compiler plugin versions)
+            try {
+                val method = companionClass.getDeclaredMethod("serializer")
+                method.isAccessible = true
+                val result = method.invoke(companionInstance)
+                if (result is KSerializer<*>) return result as KSerializer<Any>
+            } catch (_: Exception) {}
+
+            // Strategy 3: Property getter "getSerializer()" (val serializer property)
+            try {
+                val method = companionClass.getDeclaredMethod("getSerializer")
+                method.isAccessible = true
+                val result = method.invoke(companionInstance)
+                if (result is KSerializer<*>) return result as KSerializer<Any>
+            } catch (_: Exception) {}
+
+            // Strategy 4: Backing field "serializer"
+            try {
+                val field = companionClass.getDeclaredField("serializer")
+                field.isAccessible = true
+                val result = field.get(companionInstance)
+                if (result is KSerializer<*>) return result as KSerializer<Any>
+            } catch (_: Exception) {}
+
+            // Strategy 5: Walk up the class hierarchy and try all strategies again
+            var currentClass: Class<*>? = companionClass.superclass
+            while (currentClass != null) {
+                try {
+                    val method = currentClass.getDeclaredMethod("serializer")
+                    method.isAccessible = true
+                    val result = method.invoke(companionInstance)
+                    if (result is KSerializer<*>) return result as KSerializer<Any>
+                } catch (_: Exception) {}
+
+                try {
+                    val method = currentClass.getDeclaredMethod("getSerializer")
+                    method.isAccessible = true
+                    val result = method.invoke(companionInstance)
+                    if (result is KSerializer<*>) return result as KSerializer<Any>
+                } catch (_: Exception) {}
+
+                try {
+                    val field = currentClass.getDeclaredField("serializer")
+                    field.isAccessible = true
+                    val result = field.get(companionInstance)
+                    if (result is KSerializer<*>) return result as KSerializer<Any>
+                } catch (_: Exception) {}
+
+                currentClass = currentClass.superclass
+            }
+        }
+
+        Log.e("KtSerializationCF", "Could not resolve serializer for ${clazz.name} using any strategy")
+        throw SerializationException(
+            "Failed to resolve serializer for ${clazz.simpleName}. " +
+            "Ensure the class is annotated with @Serializable."
+        )
     }
 
     private class KotlinxSerializationResponseBodyConverter<T>(
@@ -92,7 +147,7 @@ class KotlinxSerializationConverterFactory(
                 throw e
             } catch (e: Exception) {
                 throw SerializationException(
-                    "Failed to deserialize response body for ${serializer.descriptor.serialName}: ${e.message}", e
+                    "Failed to deserialize response for ${serializer.descriptor.serialName}: ${e.message}", e
                 )
             } finally {
                 value.close()

@@ -175,7 +175,7 @@ class ChatRepositoryImpl @Inject constructor(
     override suspend fun muteChat(chatId: Int): Result<Boolean> {
         return try {
             val res = api.muteChat(MuteChatRequest(chatId))
-            if (res.ok) Result.success(res.is_muted ?: false) else Result.failure(Exception(res.message ?: "Ошибка"))
+            if (res.ok) Result.success((res.is_muted ?: 0) == 1) else Result.failure(Exception(res.message ?: "Ошибка"))
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -257,15 +257,15 @@ private fun ChatDto.toDomain(token: String = "") = Chat(
     partnerAvatar = resolveMediaUrl(partner_avatar, token),
     partnerLastSeen = partner_last_seen,
     partnerIsTyping = (partner_is_typing ?: 0) == 1,
-    partnerIsSystem = partner_is_system,
-    partnerIsVerified = partner_is_verified,
-    partnerIsTeamSignal = partner_is_team_signal,
+    partnerIsSystem = (partner_is_system ?: 0) == 1,
+    partnerIsVerified = (partner_is_verified ?: 0) == 1,
+    partnerIsTeamSignal = (partner_is_team_signal ?: 0) == 1,
     partnerBio = partner_bio,
-    isSavedMsgs = is_saved_msgs,
-    isPinned = is_pinned,
+    isSavedMsgs = (is_saved_msgs ?: 0) == 1,
+    isPinned = (is_pinned ?: 0) == 1,
     pinOrder = pin_order,
-    isMuted = is_muted,
-    isProtected = is_protected,
+    isMuted = (is_muted ?: 0) == 1,
+    isProtected = (is_protected ?: 0) == 1,
     unreadCount = unread_count,
     lastMessage = last_message,
     lastTime = last_time,
@@ -319,5 +319,5 @@ private fun resolveMediaUrl(url: String?, token: String): String? {
 private fun UserDto.toDomain(token: String = "") = User(
     id = id, email = email, nickname = nickname,
     signalId = signal_id, avatarUrl = resolveMediaUrl(avatar_url, token),
-    bio = bio, isVerified = is_verified, isTeamSignal = is_team_signal
+    bio = bio, isVerified = (is_verified ?: 0) == 1, isTeamSignal = (is_team_signal ?: 0) == 1
 )

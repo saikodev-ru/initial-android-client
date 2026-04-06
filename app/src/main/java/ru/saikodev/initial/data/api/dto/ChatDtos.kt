@@ -11,15 +11,15 @@ data class ChatDto(
     val partner_avatar: String? = null,
     val partner_last_seen: Long? = null,
     val partner_is_typing: Int? = null,
-    val partner_is_system: Boolean = false,
-    val partner_is_verified: Boolean = false,
-    val partner_is_team_signal: Boolean = false,
+    val partner_is_system: Int? = null,
+    val partner_is_verified: Int? = null,
+    val partner_is_team_signal: Int? = null,
     val partner_bio: String? = null,
-    val is_saved_msgs: Boolean = false,
-    val is_pinned: Boolean = false,
+    val is_saved_msgs: Int? = null,
+    val is_pinned: Int? = null,
     val pin_order: Int? = null,
-    val is_muted: Boolean = false,
-    val is_protected: Boolean = false,
+    val is_muted: Int? = null,
+    val is_protected: Int? = null,
     val unread_count: Int = 0,
     val last_message: String? = null,
     val last_time: Long? = null,
@@ -140,7 +140,7 @@ data class MuteChatRequest(val chat_id: Int)
 @Serializable
 data class MuteChatResponse(
     val ok: Boolean = false,
-    val is_muted: Boolean? = null,
+    val is_muted: Int? = null,
     val message: String? = null
 )
 

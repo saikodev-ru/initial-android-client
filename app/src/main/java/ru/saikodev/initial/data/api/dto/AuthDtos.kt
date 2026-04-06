@@ -45,8 +45,8 @@ data class UserDto(
     val signal_id: String? = null,
     val avatar_url: String? = null,
     val bio: String? = null,
-    val is_verified: Boolean = false,
-    val is_team_signal: Boolean = false
+    val is_verified: Int? = null,
+    val is_team_signal: Int? = null
 )
 
 @Serializable

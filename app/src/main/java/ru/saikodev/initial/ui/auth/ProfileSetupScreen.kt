@@ -33,6 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -60,28 +61,28 @@ fun ProfileSetupScreen(
                 .padding(top = 48.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Title
+            // ─── Title ───
             Text(
                 text = "Ваш профиль",
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier.fillMaxWidth()
+                textAlign = TextAlign.Center
             )
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Subtitle
+            // ─── Subtitle ───
             Text(
                 text = "Как вас будут видеть другие",
                 fontSize = 14.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.fillMaxWidth()
+                textAlign = TextAlign.Center
             )
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Avatar placeholder
+            // ─── Avatar placeholder ───
             Box(
                 modifier = Modifier
                     .size(80.dp)
@@ -115,18 +116,18 @@ fun ProfileSetupScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Error message
+            // ─── Error message ───
             if (error != null) {
                 Text(
                     text = error!!,
                     fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.fillMaxWidth()
+                    textAlign = TextAlign.Center
                 )
                 Spacer(modifier = Modifier.height(12.dp))
             }
 
-            // Nickname Input
+            // ─── Nickname Input ───
             OutlinedTextField(
                 value = nickname,
                 onValueChange = { nickname = it },
@@ -145,7 +146,7 @@ fun ProfileSetupScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Signal ID Input
+            // ─── Signal ID Input ───
             OutlinedTextField(
                 value = signalId,
                 onValueChange = { signalId = it },
@@ -164,7 +165,7 @@ fun ProfileSetupScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Start Button
+            // ─── Start Button ───
             Button(
                 onClick = {
                     viewModel.createProfile(

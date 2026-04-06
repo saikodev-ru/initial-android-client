@@ -6,13 +6,22 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Bookmark
@@ -23,22 +32,29 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import ru.saikodev.initial.util.MediaUtils
 
-/**
- * Initial messenger avatar component.
- * Supports: remote image, initials fallback, saved messages (bookmark), system chat (shield).
- */
+// ─── Avatar ───────────────────────────────────────────
+
 @Composable
 fun InitialAvatar(
     name: String?,
@@ -55,7 +71,6 @@ fun InitialAvatar(
         contentAlignment = Alignment.Center
     ) {
         if (isSavedMsgs) {
-            // Saved messages: purple tinted background with bookmark icon
             Box(
                 modifier = Modifier
                     .size(size)
@@ -70,7 +85,6 @@ fun InitialAvatar(
                 )
             }
         } else if (isSystem) {
-            // System chat (Initial): purple tinted background with shield icon
             Box(
                 modifier = Modifier
                     .size(size)
@@ -109,15 +123,14 @@ fun InitialAvatar(
     }
 }
 
-/**
- * Online indicator dot — small green circle with white border.
- * Positioned at bottom-right of an avatar.
- */
+// ─── Online Indicator ────────────────────────────────
+
 @Composable
 fun OnlineIndicator(
     isOnline: Boolean,
     modifier: Modifier = Modifier,
-    size: Dp = 12.dp
+    size: Dp = 12.dp,
+    themeColors: TelegramColorPalette = TelegramColors.current()
 ) {
     if (isOnline) {
         Box(
@@ -125,15 +138,13 @@ fun OnlineIndicator(
                 .size(size)
                 .background(Color.White, CircleShape)
                 .padding(1.5.dp)
-                .background(DarkColors.Online, CircleShape)
+                .background(themeColors.online, CircleShape)
         )
     }
 }
 
-/**
- * Verified badge — purple checkmark in shield icon.
- * Used for verified users and team members.
- */
+// ─── Verified Badge ──────────────────────────────────
+
 @Composable
 fun VerifiedBadge(
     isTeamSignal: Boolean = false,
@@ -143,34 +154,35 @@ fun VerifiedBadge(
         imageVector = Icons.Rounded.Shield,
         contentDescription = if (isTeamSignal) "Команда Initial" else "Верифицирован",
         modifier = modifier.size(14.dp),
-        tint = if (isTeamSignal) Color(0xFF8B5CF6) else Color(0xFF8B5CF6)
+        tint = PurpleBrand
     )
 }
 
-/**
- * Unread message count badge — primary color pill.
- * Shows count (max 99+) in white text.
- */
+// ─── Unread Badge ────────────────────────────────────
+
 @Composable
 fun UnreadBadge(
     count: Int,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isMuted: Boolean = false,
+    themeColors: TelegramColorPalette = TelegramColors.current()
 ) {
     if (count > 0) {
+        val bgColor = if (isMuted) {
+            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+        } else {
+            themeColors.unreadBadge
+        }
         Box(
             modifier = modifier
                 .height(20.dp)
-                .wrapContentWidth()
-                .background(
-                    color = MaterialTheme.colorScheme.primary,
-                    shape = RoundedCornerShape(10.dp)
-                )
+                .background(bgColor, RoundedCornerShape(10.dp))
                 .padding(horizontal = 6.dp),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 text = if (count > 99) "99+" else count.toString(),
-                color = Color.White,
+                color = if (isMuted) MaterialTheme.colorScheme.onSurfaceVariant else Color.White,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Medium
             )
@@ -178,16 +190,13 @@ fun UnreadBadge(
     }
 }
 
-/**
- * Typing indicator — three animated dots with staggered alpha animation.
- * Used in chat list and chat header to show typing state.
- */
+// ─── Typing Indicator ────────────────────────────────
+
 @Composable
 fun TypingIndicator(
     modifier: Modifier = Modifier
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "typing")
-
     Row(
         modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(3.dp),
@@ -216,9 +225,8 @@ fun TypingIndicator(
     }
 }
 
-/**
- * Pin icon — small push pin for pinned chats.
- */
+// ─── Pin Icon ────────────────────────────────────────
+
 @Composable
 fun PinIcon(
     modifier: Modifier = Modifier
@@ -229,4 +237,207 @@ fun PinIcon(
         modifier = modifier.size(14.dp),
         tint = MaterialTheme.colorScheme.onSurfaceVariant
     )
+}
+
+// ─── Mute Icon ───────────────────────────────────────
+
+@Composable
+fun MuteIcon(
+    modifier: Modifier = Modifier
+) {
+    Icon(
+        imageVector = androidx.compose.material.icons.rounded.NotificationsOff,
+        contentDescription = "Без звука",
+        modifier = modifier.size(14.dp),
+        tint = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+}
+
+// ─── Date Separator ──────────────────────────────────
+
+@Composable
+fun DateSeparator(
+    text: String,
+    modifier: Modifier = Modifier,
+    themeColors: TelegramColorPalette = TelegramColors.current()
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Surface(
+            color = themeColors.dateChipBg,
+            shape = RoundedCornerShape(16.dp),
+            contentColor = themeColors.dateChipText
+        ) {
+            Text(
+                text = text,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
+
+// ─── Message Bubble Shape (with optional tail) ───────
+
+object BubbleShapes {
+    /**
+     * Outgoing message bubble shape with tail at bottom-right.
+     */
+    val outgoingTail = GenericShape { size, _ ->
+        val w = size.width
+        val h = size.height
+        val r = 16.dp.toPx()
+        val tailW = 8.dp.toPx()
+        val tailH = 8.dp.toPx()
+
+        // Top-left corner
+        addRoundRect(Rect(0f, 0f, w, h - tailH), topLeft = CornerRadius(r), topRight = CornerRadius(r), bottomLeft = CornerRadius(r), bottomRight = CornerRadius(0f))
+        // Bottom-right tail
+        moveTo(w - tailW, h - tailH)
+        lineTo(w, h)
+        lineTo(w - r, h - tailH)
+    }
+
+    /**
+     * Incoming message bubble shape with tail at bottom-left.
+     */
+    val incomingTail = GenericShape { size, _ ->
+        val w = size.width
+        val h = size.height
+        val r = 16.dp.toPx()
+        val tailW = 8.dp.toPx()
+        val tailH = 8.dp.toPx()
+
+        // Top-right corner
+        addRoundRect(Rect(tailW, 0f, w, h - tailH), topLeft = CornerRadius(r), topRight = CornerRadius(r), bottomLeft = CornerRadius(0f), bottomRight = CornerRadius(r))
+        // Bottom-left tail
+        moveTo(tailW, h - tailH)
+        lineTo(0f, h)
+        lineTo(tailW + r, h - tailH)
+    }
+
+    val outgoingNoTail = RoundedCornerShape(
+        topStart = 16.dp,
+        topEnd = 16.dp,
+        bottomStart = 16.dp,
+        bottomEnd = 4.dp
+    )
+
+    val incomingNoTail = RoundedCornerShape(
+        topStart = 16.dp,
+        topEnd = 16.dp,
+        bottomStart = 4.dp,
+        bottomEnd = 16.dp
+    )
+}
+
+// ─── Checkmarks (read status) ────────────────────────
+
+@Composable
+fun ReadStatusIcon(
+    isRead: Boolean,
+    modifier: Modifier = Modifier,
+    tint: Color = MaterialTheme.colorScheme.onSurfaceVariant
+) {
+    if (isRead) {
+        Icon(
+            imageVector = androidx.compose.material.icons.rounded.DoneAll,
+            contentDescription = "Прочитано",
+            modifier = modifier.size(16.dp),
+            tint = tint
+        )
+    } else {
+        Icon(
+            imageVector = androidx.compose.material.icons.rounded.Check,
+            contentDescription = "Доставлено",
+            modifier = modifier.size(16.dp),
+            tint = tint
+        )
+    }
+}
+
+// ─── Telegram-style section label ────────────────────
+
+@Composable
+fun SectionLabel(
+    text: String,
+    modifier: Modifier = Modifier
+) {
+    Text(
+        text = text,
+        fontSize = 13.sp,
+        fontWeight = FontWeight.Medium,
+        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+        modifier = modifier.padding(horizontal = 24.dp, vertical = 12.dp)
+    )
+}
+
+// ─── Telegram-style clickable row ────────────────────
+
+@Composable
+fun TelegramRow(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    leading: @Composable (() -> Unit)? = null,
+    content: @Composable () -> Unit,
+    trailing: @Composable (() -> Unit)? = null
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
+            )
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        leading?.invoke()
+        if (leading != null) Spacer(modifier = Modifier.width(16.dp))
+        Column(modifier = Modifier.weight(1f)) { content() }
+        if (trailing != null) {
+            Spacer(modifier = Modifier.width(8.dp))
+            trailing()
+        }
+    }
+}
+
+// ─── Empty State ─────────────────────────────────────
+
+@Composable
+fun EmptyState(
+    icon: String,
+    title: String,
+    subtitle: String,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier.fillMaxWidth(),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(icon, fontSize = 48.sp)
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                title,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                subtitle,
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+            )
+        }
+    }
 }

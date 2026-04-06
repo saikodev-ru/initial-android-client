@@ -30,7 +30,6 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -79,24 +78,33 @@ fun QrLoginScreen(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(32.dp),
+                .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // ─── Logo ───
             Text(
                 text = "Initial.",
-                fontSize = 32.sp,
+                fontSize = 36.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary
             )
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // ─── Subtitle ───
+            Text(
+                text = "Быстрый вход через QR-код",
+                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(modifier = Modifier.height(28.dp))
 
             // ─── QR Code Display ───
             Box(
                 modifier = Modifier
                     .size(260.dp)
-                    .clip(RoundedCornerShape(16.dp))
+                    .clip(RoundedCornerShape(20.dp))
                     .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center
             ) {
@@ -105,13 +113,16 @@ fun QrLoginScreen(
                         CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                     }
                     is AuthViewModel.QrStatus.Ready -> {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
                             if (qrUrl != null) {
                                 Icon(
                                     imageVector = Icons.Rounded.QrCode2,
                                     contentDescription = "QR Code",
                                     modifier = Modifier.size(200.dp),
-                                    tint = Color.White
+                                    tint = MaterialTheme.colorScheme.onBackground
                                 )
                             } else {
                                 CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
@@ -119,7 +130,10 @@ fun QrLoginScreen(
                         }
                     }
                     is AuthViewModel.QrStatus.Scanned -> {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(40.dp),
                                 color = MaterialTheme.colorScheme.primary,
@@ -134,7 +148,10 @@ fun QrLoginScreen(
                         }
                     }
                     is AuthViewModel.QrStatus.Approved -> {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(24.dp),
                                 color = MaterialTheme.colorScheme.primary,
@@ -149,25 +166,61 @@ fun QrLoginScreen(
                         }
                     }
                     is AuthViewModel.QrStatus.Expired -> {
-                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                "QR-код устарел",
+                                fontSize = 14.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                color = MaterialTheme.colorScheme.primary,
+                                strokeWidth = 2.dp
+                            )
+                        }
                     }
                     is AuthViewModel.QrStatus.Error -> {
-                        Text(
-                            (qrStatus as AuthViewModel.QrStatus.Error).message,
-                            fontSize = 13.sp,
-                            color = MaterialTheme.colorScheme.error,
-                            textAlign = TextAlign.Center
-                        )
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                (qrStatus as AuthViewModel.QrStatus.Error).message,
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.error,
+                                textAlign = TextAlign.Center
+                            )
+                        }
                     }
                 }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            // ─── Status text below QR ───
+            Text(
+                when (qrStatus) {
+                    is AuthViewModel.QrStatus.Loading -> "Загрузка QR-кода…"
+                    is AuthViewModel.QrStatus.Ready -> "Отсканируйте код в приложении"
+                    is AuthViewModel.QrStatus.Scanned -> "Ожидание подтверждения…"
+                    is AuthViewModel.QrStatus.Approved -> "Добро пожаловать!"
+                    is AuthViewModel.QrStatus.Expired -> "Обновление QR-кода…"
+                    is AuthViewModel.QrStatus.Error -> "Произошла ошибка"
+                },
+                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
             Text(
                 "Обновляется каждые 3 минуты",
                 fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
             )
 
             if (error != null) {
@@ -179,7 +232,7 @@ fun QrLoginScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(28.dp))
 
             // ─── Email Login Button ───
             TextButton(

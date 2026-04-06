@@ -63,7 +63,7 @@ fun EmailLoginScreen(
                 .padding(horizontal = 24.dp)
                 .padding(top = 8.dp)
         ) {
-            // Back button
+            // ─── Back button ───
             IconButton(
                 onClick = onBack,
                 modifier = Modifier.size(44.dp)
@@ -77,7 +77,7 @@ fun EmailLoginScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Title
+            // ─── Title ───
             Text(
                 text = "Вход в Initial",
                 fontSize = 28.sp,
@@ -87,16 +87,16 @@ fun EmailLoginScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Subtitle
+            // ─── Subtitle ───
             Text(
-                text = "Введите email — пришлём одноразовый код",
+                text = "Введите email для получения кода",
                 fontSize = 14.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Error message
+            // ─── Error message ───
             if (error != null) {
                 Text(
                     text = error!!,
@@ -106,7 +106,7 @@ fun EmailLoginScreen(
                 Spacer(modifier = Modifier.height(12.dp))
             }
 
-            // Email Input
+            // ─── Email Input ───
             OutlinedTextField(
                 value = email,
                 onValueChange = { email = it },
@@ -114,7 +114,9 @@ fun EmailLoginScreen(
                 placeholder = { Text("example@mail.com") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp),
                 shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = MaterialTheme.colorScheme.primary,
@@ -126,7 +128,7 @@ fun EmailLoginScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Continue Button
+            // ─── Continue Button ───
             Button(
                 onClick = {
                     if (email.isNotBlank()) {

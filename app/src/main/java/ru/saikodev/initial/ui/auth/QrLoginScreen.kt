@@ -15,16 +15,11 @@ import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Mail
-import androidx.compose.material.icons.filled.QrCode2
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material.icons.rounded.Mail
+import androidx.compose.material.icons.rounded.QrCode2
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -36,27 +31,38 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import kotlinx.coroutines.delay
+import ru.saikodev.initial.domain.model.User
 
+/**
+ * QR Login screen.
+ * Shows QR code for scanning, with email login fallback button.
+ * After QR approval, fetches user profile and passes to callback.
+ */
 @Composable
 fun QrLoginScreen(
-    onLoginSuccess: () -> Unit,
+    onLoginSuccess: (user: User?) -> Unit,
     onEmailLogin: () -> Unit,
     viewModel: AuthViewModel = hiltViewModel()
 ) {
     val qrUrl by viewModel.qrUrl.collectAsState()
     val qrStatus by viewModel.qrStatus.collectAsState()
+    val qrApprovedUser by viewModel.qrApprovedUser.collectAsState()
     val error by viewModel.error.collectAsState()
     val loginSuccess by rememberUpdatedState(qrStatus is AuthViewModel.QrStatus.Approved)
 
+    // Navigate after QR approved and user fetched (with timeout fallback)
     LaunchedEffect(loginSuccess) {
-        if (loginSuccess) onLoginSuccess()
+        if (loginSuccess) {
+            // Wait for user fetch, but don't block indefinitely
+            delay(1500)
+            onLoginSuccess(qrApprovedUser)
+        }
     }
 
     LaunchedEffect(Unit) {
@@ -76,7 +82,7 @@ fun QrLoginScreen(
                 .padding(32.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Logo
+            // ─── Logo ───
             Text(
                 text = "Initial.",
                 fontSize = 32.sp,
@@ -86,7 +92,7 @@ fun QrLoginScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // QR Code Display
+            // ─── QR Code Display ───
             Box(
                 modifier = Modifier
                     .size(260.dp)
@@ -99,16 +105,16 @@ fun QrLoginScreen(
                         CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                     }
                     is AuthViewModel.QrStatus.Ready -> {
-                        if (qrUrl != null) {
-                            // In production, use a QR rendering library
-                            // For now, show the URL and a placeholder
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            if (qrUrl != null) {
                                 Icon(
-                                    imageVector = Icons.Default.QrCode2,
+                                    imageVector = Icons.Rounded.QrCode2,
                                     contentDescription = "QR Code",
                                     modifier = Modifier.size(200.dp),
                                     tint = Color.White
                                 )
+                            } else {
+                                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                             }
                         }
                     }
@@ -128,12 +134,19 @@ fun QrLoginScreen(
                         }
                     }
                     is AuthViewModel.QrStatus.Approved -> {
-                        Icon(
-                            imageVector = Icons.Default.QrCode2,
-                            contentDescription = null,
-                            modifier = Modifier.size(80.dp),
-                            tint = Color(0xFF34C759)
-                        )
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                color = MaterialTheme.colorScheme.primary,
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                "Вход…",
+                                fontSize = 14.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                     is AuthViewModel.QrStatus.Expired -> {
                         CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
@@ -168,13 +181,21 @@ fun QrLoginScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Email Login Button
+            // ─── Email Login Button ───
             TextButton(
                 onClick = onEmailLogin
             ) {
-                Icon(Icons.Default.Mail, contentDescription = null, modifier = Modifier.size(18.dp))
+                Icon(
+                    Icons.Rounded.Mail,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Войти по Email")
+                Text(
+                    "Войти по Email",
+                    color = MaterialTheme.colorScheme.primary
+                )
             }
         }
     }

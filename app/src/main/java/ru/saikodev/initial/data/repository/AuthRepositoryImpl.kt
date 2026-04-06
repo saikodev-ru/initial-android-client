@@ -19,11 +19,14 @@ class AuthRepositoryImpl @Inject constructor(
     override val isLoggedIn: Boolean
         get() = tokenManager.getToken() != null
 
-    override suspend fun sendCode(email: String): Result<Unit> {
+    override suspend fun sendCode(email: String): Result<String> {
         return try {
             val res = api.sendCode(SendCodeRequest(email))
-            if (res.ok) Result.success(Unit)
-            else Result.failure(Exception(res.message ?: "Ошибка отправки кода"))
+            if (res.ok) {
+                Result.success(res.via ?: "email")
+            } else {
+                Result.failure(Exception(res.message ?: "Ошибка отправки кода"))
+            }
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -83,6 +86,11 @@ class AuthRepositoryImpl @Inject constructor(
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    override suspend fun saveQrAuth(token: String, userJson: String) {
+        tokenManager.saveToken(token)
+        tokenManager.saveUserJson(userJson)
     }
 
     override suspend fun logout() {

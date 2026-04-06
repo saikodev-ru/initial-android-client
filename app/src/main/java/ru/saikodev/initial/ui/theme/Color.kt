@@ -9,9 +9,9 @@ val PurpleLight = Color(0xFFA78BFA)
 
 // ── Dark Theme ──
 object DarkColors {
-    val Background = Color(0xFF111111)
+    val Background = Color(0xFF0F0F0F)
     val Surface = Color(0xFF1A1A1A)
-    val SurfaceVariant = Color(0xFF222222)
+    val SurfaceVariant = Color(0xFF1F1F1F)
     val SurfaceElevated = Color(0xFF2A2A2A)
     val Primary = Color(0xFFFFFFFF)
     val PrimaryVariant = Color(0xFFB4B4B4)
@@ -30,6 +30,10 @@ object DarkColors {
     val Error = Color(0xFFFF453A)
     val CodeBackground = Color(0xFF1E1E1E)
     val QuoteBar = Color(0xFF8B5CF6)
+    val NavBackground = Color(0xFF141414)
+    val SearchBackground = Color(0xFF1A1A1A)
+    val PinnedBg = Color(0xFF181818)
+    val ProfileBarBg = Color(0xFF161616)
 }
 
 // ── Light Theme ──
@@ -55,6 +59,10 @@ object LightColors {
     val Error = Color(0xFFFF3B30)
     val CodeBackground = Color(0xFFF0F0F0)
     val QuoteBar = Color(0xFF8B5CF6)
+    val NavBackground = Color(0xFFFFFFFF)
+    val SearchBackground = Color(0xFFF0F0F0)
+    val PinnedBg = Color(0xFFF8F8F8)
+    val ProfileBarBg = Color(0xFFFFFFFF)
 }
 
 // ── AMOLED Theme ──
@@ -80,4 +88,8 @@ object AmoledColors {
     val Error = Color(0xFFFF453A)
     val CodeBackground = Color(0xFF0D0D0D)
     val QuoteBar = Color(0xFF8B5CF6)
+    val NavBackground = Color(0xFF050505)
+    val SearchBackground = Color(0xFF0A0A0A)
+    val PinnedBg = Color(0xFF080808)
+    val ProfileBarBg = Color(0xFF060606)
 }

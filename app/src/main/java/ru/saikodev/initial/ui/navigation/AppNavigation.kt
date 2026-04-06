@@ -141,6 +141,7 @@ fun AppNavigation() {
 
         // ─── Main ───
         composable(Screen.ChatList.route) {
+            val chatListViewModel: ru.saikodev.initial.ui.chatlist.ChatListViewModel = hiltViewModel()
             ChatListScreen(
                 onChatClick = { chatId ->
                     navController.navigate(Screen.Chat.createRoute(chatId))
@@ -150,6 +151,11 @@ fun AppNavigation() {
                 },
                 onNewChat = {
                     // TODO: Open new chat dialog / contact picker
+                },
+                onUserClick = { signalId ->
+                    chatListViewModel.openChatWithUser(signalId) { chatId ->
+                        navController.navigate(Screen.Chat.createRoute(chatId))
+                    }
                 }
             )
         }

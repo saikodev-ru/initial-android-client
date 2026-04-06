@@ -49,7 +49,7 @@ data class MessageDto(
     val media_file_ext: String? = null,
     val batch_id: String? = null,
     val reactions: List<ReactionDto>? = null,
-    val patch_only: Boolean? = null
+    val patch_only: Int? = null
 )
 
 @Serializable

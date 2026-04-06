@@ -74,6 +74,7 @@ fun ChatListScreen(
     onChatClick: (Int) -> Unit,
     onSettingsClick: () -> Unit,
     onNewChat: () -> Unit = {},
+    onUserClick: (String) -> Unit = {},  // signal_id of user to open chat with
     viewModel: ChatListViewModel = hiltViewModel()
 ) {
     val chats by viewModel.chats.collectAsState()
@@ -126,6 +127,7 @@ fun ChatListScreen(
                     searchResults = searchResults,
                     userResults = userResults,
                     onChatClick = onChatClick,
+                    onUserClick = onUserClick,
                     tgColors = tgColors
                 )
             } else {
@@ -378,6 +380,7 @@ private fun SearchResultsContent(
     searchResults: List<Chat>,
     userResults: List<User>,
     onChatClick: (Int) -> Unit,
+    onUserClick: (String) -> Unit,
     tgColors: TelegramColorPalette
 ) {
     if (searchResults.isEmpty() && userResults.isEmpty()) {
@@ -428,7 +431,10 @@ private fun SearchResultsContent(
                 ) { index ->
                     val user = userResults[index]
                     Column {
-                        UserSearchItem(user = user)
+                        UserSearchItem(
+                            user = user,
+                            onClick = { user.signalId?.let { onUserClick(it) } }
+                        )
                         if (user != userResults.last()) {
                             HorizontalDivider(
                                 modifier = Modifier.padding(start = 78.dp, end = 16.dp),
@@ -618,11 +624,11 @@ private fun ChatItemRow(
 // ─── User Search Item ──────────────────────────────────────
 
 @Composable
-private fun UserSearchItem(user: User) {
+private fun UserSearchItem(user: User, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { /* Navigate to user profile or start chat */ }
+            .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

@@ -110,6 +110,41 @@ class ChatListViewModel @Inject constructor(
         _selectedChat.value = chat
     }
 
+    /**
+     * Open a chat with a user by their signal_id.
+     * Sends an empty message to create the chat if it doesn't exist,
+     * then navigates to it via the onResult callback with the chat_id.
+     */
+    fun openChatWithUser(signalId: String, onResult: (Int) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val result = chatRepository.sendMessage(signalId, "", null)
+                if (result.isSuccess) {
+                    val chatId = result.getOrNull()?.chatId
+                    if (chatId != null) {
+                        // Refresh chat list to include the new chat
+                        val chatsResult = chatRepository.loadChats()
+                        if (chatsResult.isSuccess) {
+                            _chats.value = chatsResult.getOrNull() ?: _chats.value
+                        }
+                        onResult(chatId)
+                    } else {
+                        // Fallback: try to find chat in existing list
+                        val existingChat = _chats.value.find { it.partnerSignalId == signalId }
+                        if (existingChat != null) {
+                            onResult(existingChat.chatId)
+                        }
+                    }
+                } else {
+                    _error.value = result.exceptionOrNull()?.message ?: "Не удалось открыть чат"
+                }
+            } catch (e: Exception) {
+                Log.e("ChatListVM", "openChatWithUser failed", e)
+                _error.value = e.message ?: "Ошибка"
+            }
+        }
+    }
+
     fun clearSearch() {
         _searchQuery.value = ""
         _isSearching.value = false

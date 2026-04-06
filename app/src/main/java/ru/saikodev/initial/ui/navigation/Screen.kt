@@ -17,4 +17,5 @@ sealed class Screen(val route: String) {
     object SettingsChat : Screen("settings_chat")
     object SettingsDevices : Screen("settings_devices")
     object SettingsAbout : Screen("settings_about")
+    object QrScanner : Screen("qr_scanner")
 }

@@ -7,11 +7,14 @@ import ru.saikodev.initial.domain.model.User
 interface AuthRepository {
     val isLoggedIn: Boolean
     suspend fun sendCode(email: String): Result<String>
+    suspend fun resendCode(email: String, forceEmail: Boolean = false): Result<String>
     suspend fun verifyCode(email: String, code: String): Result<User>
     suspend fun createProfile(nickname: String, signalId: String?): Result<User>
     suspend fun qrCreate(): Result<QrCreateResponse>
     suspend fun qrPoll(token: String): Result<QrPollResponse>
     suspend fun saveQrAuth(token: String, userJson: String)
+    suspend fun consumeQrLink(token: String): Result<User?>
+    suspend fun approveQr(qrToken: String): Result<Unit>
     suspend fun logout()
     fun getSavedUser(): User?
 }

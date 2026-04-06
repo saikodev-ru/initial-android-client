@@ -139,6 +139,11 @@ dependencies {
     implementation("com.google.zxing:core:3.5.2")
 
     // ──────────────────────────────────────────────
+    // ML Kit Barcode Scanning
+    // ──────────────────────────────────────────────
+    implementation("com.google.mlkit:barcode-scanning:17.2.0")
+
+    // ──────────────────────────────────────────────
     // AndroidX Core
     // ──────────────────────────────────────────────
     implementation("androidx.core:core-ktx:1.12.0")

@@ -1,5 +1,9 @@
 package ru.saikodev.initial.ui.navigation
 
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideIntoContainer
+import androidx.compose.animation.slideOutOfContainer
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -10,12 +14,14 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import ru.saikodev.initial.domain.model.User
+import ru.saikodev.initial.ui.auth.AuthViewModel
 import ru.saikodev.initial.ui.auth.CodeVerificationScreen
 import ru.saikodev.initial.ui.auth.EmailLoginScreen
 import ru.saikodev.initial.ui.auth.ProfileSetupScreen
 import ru.saikodev.initial.ui.auth.QrLoginScreen
 import ru.saikodev.initial.ui.chat.ChatScreen
 import ru.saikodev.initial.ui.chatlist.ChatListScreen
+import ru.saikodev.initial.ui.components.QrScannerScreen
 import ru.saikodev.initial.ui.settings.MainViewModel
 import ru.saikodev.initial.ui.settings.SettingsScreen
 
@@ -51,7 +57,19 @@ fun AppNavigation() {
 
     NavHost(
         navController = navController,
-        startDestination = if (isLoggedIn) Screen.ChatList.route else Screen.Auth.route
+        startDestination = if (isLoggedIn) Screen.ChatList.route else Screen.Auth.route,
+        enterTransition = {
+            slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Left, tween(300))
+        },
+        exitTransition = {
+            slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Left, tween(300))
+        },
+        popEnterTransition = {
+            slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Right, tween(300))
+        },
+        popExitTransition = {
+            slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Right, tween(300))
+        }
     ) {
         // ─── Auth ───
         composable(Screen.Auth.route) {
@@ -61,6 +79,9 @@ fun AppNavigation() {
                 },
                 onEmailLogin = {
                     navController.navigate(Screen.EmailLogin.route)
+                },
+                onQrScan = {
+                    navController.navigate(Screen.QrScanner.route)
                 }
             )
         }
@@ -100,6 +121,22 @@ fun AppNavigation() {
                         popUpTo(0) { inclusive = true }
                     }
                 }
+            )
+        }
+
+        // ─── QR Scanner ───
+        composable(Screen.QrScanner.route) {
+            val viewModel: AuthViewModel = hiltViewModel()
+            QrScannerScreen(
+                onQrScanned = { loginToken, linkToken ->
+                    navController.popBackStack()
+                    viewModel.handleQrScan(loginToken, linkToken) { user ->
+                        if (user != null) {
+                            navigateAfterAuth(user)
+                        }
+                    }
+                },
+                onBack = { navController.popBackStack() }
             )
         }
 

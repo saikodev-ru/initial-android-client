@@ -24,7 +24,7 @@
         android:label="Initial"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.Material3.DynamicColors.DayNight"
+        android:theme="@style/Theme.Initial"
         tools:targetApi="34">
 
         <activity

@@ -24,9 +24,13 @@ class ChatRepositoryImpl @Inject constructor(
     override suspend fun loadChats(): Result<List<Chat>> {
         return try {
             val token = tokenManager.getToken() ?: ""
+            Log.d("ChatRepo", "loadChats: calling get_messages?chat_id=0, token=${token.take(8)}...")
             val res = api.getMessages(chatId = 0)
+            Log.d("ChatRepo", "loadChats: ok=${res.ok}, chats=${res.chats?.size ?: "null"}, msg=${res.message}")
             if (res.ok) {
-                Result.success((res.chats ?: emptyList()).map { it.toDomain(token) }.sortedWith(compareByDescending<Chat> { it.isPinned }.thenByDescending { it.lastTime ?: 0 }))
+                val chats = (res.chats ?: emptyList()).map { it.toDomain(token) }.sortedWith(compareByDescending<Chat> { it.isPinned }.thenByDescending { it.lastTime ?: 0 })
+                Log.d("ChatRepo", "loadChats: mapped ${chats.size} chats to domain")
+                Result.success(chats)
             } else {
                 Result.failure(Exception(res.message ?: "Ошибка загрузки чатов"))
             }
@@ -152,9 +156,10 @@ class ChatRepositoryImpl @Inject constructor(
 
     override suspend fun searchUsers(query: String): Result<List<User>> {
         return try {
+            val token = tokenManager.getToken() ?: ""
             val res = api.searchUser(query)
             if (res.ok) {
-                Result.success((res.users ?: emptyList()).map { it.toDomain() })
+                Result.success((res.users ?: emptyList()).map { it.toDomain(token) })
             } else {
                 Result.failure(Exception(res.message ?: "Ошибка поиска"))
             }

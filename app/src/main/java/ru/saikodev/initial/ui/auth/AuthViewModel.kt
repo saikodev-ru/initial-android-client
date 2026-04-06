@@ -11,6 +11,7 @@ import kotlinx.coroutines.launch
 import ru.saikodev.initial.domain.model.User
 import ru.saikodev.initial.domain.repository.AuthRepository
 import ru.saikodev.initial.domain.repository.ProfileRepository
+import kotlinx.serialization.json.Json
 import javax.inject.Inject
 
 @HiltViewModel
@@ -103,10 +104,25 @@ class AuthViewModel @Inject constructor(
         }
     }
 
+    fun resendCode(email: String, forceEmail: Boolean = false, onResult: (String) -> Unit = {}) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+            val result = authRepository.resendCode(email, forceEmail)
+            _isLoading.value = false
+            if (result.isSuccess) {
+                onResult(result.getOrNull() ?: "email")
+            } else {
+                _error.value = result.exceptionOrNull()?.message ?: "Ошибка отправки кода"
+            }
+        }
+    }
+
     // ─── QR Login ───
 
     private var qrToken: String? = null
     private var qrPollJob: Job? = null
+    private var lastQrPollResult: ru.saikodev.initial.data.api.dto.QrPollResponse? = null
 
     fun startQrFlow() {
         viewModelScope.launch {
@@ -133,20 +149,29 @@ class AuthViewModel @Inject constructor(
                 val token = qrToken ?: break
                 val result = authRepository.qrPoll(token)
                 if (result.isSuccess) {
-                    when (result.getOrNull()?.status) {
+                    val pollData = result.getOrNull()
+                    lastQrPollResult = pollData
+                    when (pollData?.status) {
                         "scanned" -> _qrStatus.value = QrStatus.Scanned
                         "approved" -> {
                             _qrStatus.value = QrStatus.Approved
                             qrPollJob?.cancel()
-                            // Fetch user profile after auth token is saved
+                            // Save auth token FIRST
+                            if (pollData.auth_token != null) {
+                                authRepository.saveQrAuth(
+                                    pollData.auth_token,
+                                    if (pollData.user != null) {
+                                        Json.encodeToString(pollData.user)
+                                    } else ""
+                                )
+                            }
+                            // Then fetch user profile
                             try {
                                 val userResult = profileRepository.getMe()
                                 if (userResult.isSuccess) {
                                     _qrApprovedUser.value = userResult.getOrNull()
                                 }
-                            } catch (_: Exception) {
-                                // If fetch fails, user stays null → will go to ProfileSetup
-                            }
+                            } catch (_: Exception) {}
                         }
                         "expired" -> {
                             _qrStatus.value = QrStatus.Expired
@@ -176,5 +201,36 @@ class AuthViewModel @Inject constructor(
     override fun onCleared() {
         super.onCleared()
         stopQrPolling()
+    }
+
+    // ─── QR Scanner handling ───
+
+    fun handleQrScan(loginToken: String, linkToken: String, onResult: (User?) -> Unit) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                if (linkToken.isNotEmpty()) {
+                    // Direct link - consume token
+                    val result = authRepository.consumeQrLink(linkToken)
+                    if (result.isSuccess) {
+                        onResult(result.getOrNull())
+                    } else {
+                        _error.value = result.exceptionOrNull()?.message ?: "Ошибка сканирования"
+                        onResult(null)
+                    }
+                } else if (loginToken.isNotEmpty()) {
+                    // Approval flow - need to be logged in
+                    val result = authRepository.approveQr(loginToken)
+                    if (result.isSuccess) {
+                        onResult(null) // No user change, just approved
+                    } else {
+                        _error.value = result.exceptionOrNull()?.message ?: "Ошибка подтверждения"
+                    }
+                }
+            } catch (e: Exception) {
+                _error.value = e.message ?: "Ошибка"
+            }
+            _isLoading.value = false
+        }
     }
 }

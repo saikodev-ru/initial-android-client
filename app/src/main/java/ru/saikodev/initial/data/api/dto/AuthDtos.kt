@@ -3,7 +3,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class SendCodeRequest(val email: String)
+data class SendCodeRequest(val email: String, val force_email: Boolean? = null)
 
 @Serializable
 data class SendCodeResponse(

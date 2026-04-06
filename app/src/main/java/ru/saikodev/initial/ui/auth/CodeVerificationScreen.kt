@@ -34,7 +34,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -64,6 +66,7 @@ fun CodeVerificationScreen(
     val resendTimer by viewModel.resendTimer.collectAsState()
     val focusManager = LocalFocusManager.current
     val focusRequesters = remember { List(5) { FocusRequester() } }
+    var currentVia by remember { mutableStateOf(via) }
 
     LaunchedEffect(Unit) {
         viewModel.startResendTimer()
@@ -109,7 +112,7 @@ fun CodeVerificationScreen(
 
             // ─── Subtitle ───
             Text(
-                text = if (via == "signal") "Отправили код в чат с @initial"
+                text = if (currentVia == "signal") "Отправили код в чат с @initial"
                 else "Отправили 5-значный код на $email",
                 fontSize = 14.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -224,6 +227,24 @@ fun CodeVerificationScreen(
                 }) {
                     Text(
                         "Отправить код повторно",
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+
+            // ─── Send to Email (when via is signal) ───
+            if (currentVia == "signal") {
+                TextButton(
+                    onClick = {
+                        viewModel.resendCode(email, forceEmail = true) { newVia ->
+                            currentVia = newVia
+                            viewModel.startResendTimer()
+                        }
+                    },
+                    enabled = !isLoading
+                ) {
+                    Text(
+                        "Отправить на почту",
                         color = MaterialTheme.colorScheme.primary
                     )
                 }

@@ -105,6 +105,49 @@ class AuthRepositoryImpl @Inject constructor(
             null
         }
     }
+
+    override suspend fun resendCode(email: String, forceEmail: Boolean): Result<String> {
+        return try {
+            val res = api.sendCode(SendCodeRequest(email, force_email = forceEmail))
+            if (res.ok) {
+                Result.success(res.via ?: "email")
+            } else {
+                Result.failure(Exception(res.message ?: "Ошибка отправки кода"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun consumeQrLink(token: String): Result<User?> {
+        return try {
+            val res = api.qrLinkConsume(QrLinkConsumeRequest(token))
+            if (res.ok) {
+                if (res.auth_token != null) {
+                    tokenManager.saveToken(res.auth_token)
+                }
+                if (res.user != null) {
+                    tokenManager.saveUserJson(Json.encodeToString(res.user))
+                    Result.success(res.user.toDomain())
+                } else {
+                    Result.success(null)
+                }
+            } else {
+                Result.failure(Exception(res.message ?: "Ошибка QR-ссылки"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun approveQr(qrToken: String): Result<Unit> {
+        return try {
+            val res = api.qrApprove(QrApproveRequest(qrToken))
+            if (res.ok) Result.success(Unit) else Result.failure(Exception(res.message ?: "Ошибка подтверждения"))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }
 
 // Extension

@@ -105,6 +105,8 @@ class ChatListViewModel @Inject constructor(
             val result = chatRepository.searchUsers(query)
             if (result.isSuccess) {
                 _userSearchResults.value = result.getOrNull() ?: emptyList()
+            } else {
+                Log.e("ChatListVM", "Search failed", result.exceptionOrNull())
             }
         }
     }
@@ -115,32 +117,44 @@ class ChatListViewModel @Inject constructor(
 
     /**
      * Open a chat with a user by their signal_id.
-     * Sends an empty message to create the chat if it doesn't exist,
-     * then navigates to it via the onResult callback with the chat_id.
+     *
+     * Matches web client behavior (chat-list.js startChat()):
+     * 1. First, check if a chat already exists in the local chat list
+     * 2. If found, navigate to that chat directly
+     * 3. If not found, refresh chat list from server (chat may have been
+     *    created in another session) and try again
+     * 4. If still not found, the ChatScreen should handle opening a new chat
+     *    by sending the first message (server auto-creates the chat).
+     *
+     * NOTE: We do NOT send an empty message to create the chat because
+     * send_message.php rejects empty messages: "Сообщение не может быть пустым"
      */
     fun openChatWithUser(signalId: String, onResult: (Int) -> Unit) {
         viewModelScope.launch {
             try {
-                val result = chatRepository.sendMessage(signalId, "", null)
-                if (result.isSuccess) {
-                    val chatId = result.getOrNull()?.chatId
-                    if (chatId != null) {
-                        // Refresh chat list to include the new chat
-                        val chatsResult = chatRepository.loadChats()
-                        if (chatsResult.isSuccess) {
-                            _chats.value = chatsResult.getOrNull() ?: _chats.value
-                        }
-                        onResult(chatId)
-                    } else {
-                        // Fallback: try to find chat in existing list
-                        val existingChat = _chats.value.find { it.partnerSignalId == signalId }
-                        if (existingChat != null) {
-                            onResult(existingChat.chatId)
-                        }
-                    }
-                } else {
-                    _error.value = result.exceptionOrNull()?.message ?: "Не удалось открыть чат"
+                // 1. Check existing chats (same as web: S.chats.find(c=>c.partner_signal_id===u.signal_id))
+                val existingChat = _chats.value.find { it.partnerSignalId == signalId }
+                if (existingChat != null) {
+                    onResult(existingChat.chatId)
+                    return@launch
                 }
+
+                // 2. Refresh chat list from server
+                val refreshResult = chatRepository.loadChats()
+                if (refreshResult.isSuccess) {
+                    val freshChats = refreshResult.getOrNull() ?: emptyList()
+                    _chats.value = freshChats
+                    val freshChat = freshChats.find { it.partnerSignalId == signalId }
+                    if (freshChat != null) {
+                        onResult(freshChat.chatId)
+                        return@launch
+                    }
+                }
+
+                // 3. No chat exists yet — navigate with chat_id=0 as placeholder
+                // The ChatScreen will handle creating the chat when user sends first message
+                Log.d("ChatListVM", "No existing chat with @$signalId, opening as new")
+                onResult(0)
             } catch (e: Exception) {
                 Log.e("ChatListVM", "openChatWithUser failed", e)
                 _error.value = e.message ?: "Ошибка"

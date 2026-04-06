@@ -1,5 +1,6 @@
 package ru.saikodev.initial.ui.auth
 
+import android.graphics.Bitmap
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Mail
 import androidx.compose.material.icons.rounded.QrCode2
+import androidx.compose.material.icons.rounded.QrCodeScanner
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -26,17 +28,23 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import ru.saikodev.initial.domain.model.User
+import ru.saikodev.initial.util.QrCodeUtils
 
 /**
  * QR Login screen.
@@ -47,6 +55,7 @@ import ru.saikodev.initial.domain.model.User
 fun QrLoginScreen(
     onLoginSuccess: (user: User?) -> Unit,
     onEmailLogin: () -> Unit,
+    onQrScan: () -> Unit,
     viewModel: AuthViewModel = hiltViewModel()
 ) {
     val qrUrl by viewModel.qrUrl.collectAsState()
@@ -118,12 +127,28 @@ fun QrLoginScreen(
                             verticalArrangement = Arrangement.Center
                         ) {
                             if (qrUrl != null) {
-                                Icon(
-                                    imageVector = Icons.Rounded.QrCode2,
-                                    contentDescription = "QR Code",
-                                    modifier = Modifier.size(200.dp),
-                                    tint = MaterialTheme.colorScheme.onBackground
-                                )
+                                val qrBitmap = remember(qrUrl) {
+                                    mutableStateOf(null as Bitmap?)
+                                }
+                                LaunchedEffect(qrUrl) {
+                                    withContext(Dispatchers.IO) {
+                                        val bmp = QrCodeUtils.generateQrBitmap(qrUrl!!, 800, 32)
+                                        withContext(Dispatchers.Main) {
+                                            qrBitmap.value = bmp
+                                        }
+                                    }
+                                }
+                                if (qrBitmap.value != null) {
+                                    androidx.compose.foundation.Image(
+                                        bitmap = qrBitmap.value!!.asImageBitmap(),
+                                        contentDescription = "QR Code",
+                                        modifier = Modifier
+                                            .size(220.dp)
+                                            .padding(8.dp)
+                                    )
+                                } else {
+                                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                                }
                             } else {
                                 CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                             }
@@ -247,6 +272,23 @@ fun QrLoginScreen(
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     "Войти по Email",
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            // ─── Scan QR Button ───
+            TextButton(
+                onClick = onQrScan
+            ) {
+                Icon(
+                    Icons.Rounded.QrCodeScanner,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    "Сканировать QR-код",
                     color = MaterialTheme.colorScheme.primary
                 )
             }

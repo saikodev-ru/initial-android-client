@@ -151,7 +151,7 @@ class ChatRepositoryImpl @Inject constructor(
         return try {
             val res = api.searchUser(query)
             if (res.ok) {
-                Result.success((res.results ?: emptyList()).map { it.toDomain() })
+                Result.success((res.users ?: emptyList()).map { it.toDomain() })
             } else {
                 Result.failure(Exception(res.message ?: "Ошибка поиска"))
             }
@@ -180,7 +180,7 @@ class ChatRepositoryImpl @Inject constructor(
 
     override suspend fun deleteChat(chatId: Int): Result<Unit> {
         return try {
-            val res = api.deleteChat(chatId)
+            val res = api.deleteChat(DeleteChatRequest(chatId))
             if (res.ok) Result.success(Unit) else Result.failure(Exception(res.message ?: "Ошибка"))
         } catch (e: Exception) {
             Result.failure(e)

@@ -118,8 +118,11 @@ data class ReactMessageResponse(
 data class SearchUserResponse(
     val ok: Boolean = false,
     val message: String? = null,
-    val results: List<UserDto>? = null
+    val users: List<UserDto>? = null
 )
+
+@Serializable
+data class DeleteChatRequest(val chat_id: Int)
 
 @Serializable
 data class PinChatRequest(

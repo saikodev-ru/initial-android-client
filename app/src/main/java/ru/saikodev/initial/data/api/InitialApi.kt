@@ -80,7 +80,7 @@ interface InitialApi {
     suspend fun muteChat(@Body request: MuteChatRequest): MuteChatResponse
 
     @POST("delete_chat")
-    suspend fun deleteChat(@Query("chat_id") chatId: Int): DeleteChatResponse
+    suspend fun deleteChat(@Body request: DeleteChatRequest): DeleteChatResponse
 
     // ── Media ──
     @Multipart

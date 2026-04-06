@@ -41,6 +41,9 @@ class ChatListViewModel @Inject constructor(
     private val _selectedChat = MutableStateFlow<Chat?>(null)
     val selectedChat: StateFlow<Chat?> = _selectedChat
 
+    private val _error = MutableStateFlow<String?>(null)
+    val error: StateFlow<String?> = _error
+
     private var pollJob: Job? = null
 
     init {

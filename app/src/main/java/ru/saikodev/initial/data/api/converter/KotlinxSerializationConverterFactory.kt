@@ -8,13 +8,15 @@ import okhttp3.RequestBody
 import okhttp3.ResponseBody
 import retrofit2.Converter
 import retrofit2.Retrofit
+import java.lang.reflect.ParameterizedType
 import java.lang.reflect.Type
 
 /**
  * A Retrofit converter factory that uses kotlinx.serialization for JSON serialization/deserialization.
  *
- * Uses pure Java reflection (Class.forName) to resolve serializers from @Serializable companion objects.
- * This approach works on all Kotlin versions (1.x and 2.0+) without any deprecated KClass APIs.
+ * Kotlin compiler generates a static bridge method `serializer()` on the @Serializable class itself
+ * (not on the Companion). We use that static method to obtain the KSerializer instance.
+ * Also supports ParameterizedType (e.g. List<ChatDto>) by resolving the raw type.
  */
 class KotlinxSerializationConverterFactory(
     private val json: Json = Json { ignoreUnknownKeys = true }
@@ -41,20 +43,32 @@ class KotlinxSerializationConverterFactory(
 
     /**
      * Resolve the kotlinx.serialization KSerializer for a given java.lang.reflect.Type.
-     * Uses Class.forName to find the Companion class, then invokes its serializer() method.
+     *
+     * For a @Serializable class Foo, the Kotlin compiler plugin generates:
+     * - A static method `Foo.serializer()` returning KSerializer<Foo>
+     * We call this static method directly on the outer class.
      */
     @Suppress("UNCHECKED_CAST")
     private fun resolveSerializer(type: Type): KSerializer<Any> {
-        val clazz = type as? Class<*>
-            ?: throw IllegalArgumentException("Cannot resolve serializer for type: $type, must be a Class")
-        try {
-            val companionClass = Class.forName("${clazz.name}\$Companion")
-            val method = companionClass.getDeclaredMethod("serializer")
+        val clazz = when (type) {
+            is Class<*> -> type
+            is ParameterizedType -> {
+                val raw = type.rawType
+                if (raw is Class<*>) raw
+                else throw IllegalArgumentException("Cannot resolve serializer for type: $type")
+            }
+            else -> throw IllegalArgumentException("Cannot resolve serializer for type: $type")
+        }
+
+        return try {
+            // The Kotlin serialization compiler plugin generates a static bridge method
+            // `public static KSerializer<Foo> serializer()` on the @Serializable class itself.
+            val method = clazz.getDeclaredMethod("serializer")
             method.isAccessible = true
-            return method.invoke(null) as KSerializer<Any>
-        } catch (e: ClassNotFoundException) {
+            method.invoke(null) as KSerializer<Any>
+        } catch (e: NoSuchMethodException) {
             throw SerializationException(
-                "No companion object found for ${clazz.simpleName}. " +
+                "No serializer() method found for ${clazz.simpleName}. " +
                 "Ensure the class is annotated with @Serializable."
             )
         } catch (e: SerializationException) {

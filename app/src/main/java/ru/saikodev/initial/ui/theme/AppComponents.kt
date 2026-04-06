@@ -21,7 +21,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Bookmark
@@ -36,13 +35,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.RoundRect
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.DoneAll
@@ -290,42 +283,6 @@ fun DateSeparator(
 // ─── Message Bubble Shape (with optional tail) ───────
 
 object BubbleShapes {
-    /**
-     * Outgoing message bubble shape with tail at bottom-right.
-     */
-    val outgoingTail = GenericShape { size ->
-        val w = size.width
-        val h = size.height
-        val r = 16.dp.toPx()
-        val tailW = 8.dp.toPx()
-        val tailH = 8.dp.toPx()
-
-        // Top-left corner
-        addRoundRect(RoundRect(0f, 0f, w, h - tailH, CornerRadius(r), CornerRadius(r), CornerRadius(0f), CornerRadius(r)))
-        // Bottom-right tail
-        moveTo(w - tailW, h - tailH)
-        lineTo(w, h)
-        lineTo(w - r, h - tailH)
-    }
-
-    /**
-     * Incoming message bubble shape with tail at bottom-left.
-     */
-    val incomingTail = GenericShape { size ->
-        val w = size.width
-        val h = size.height
-        val r = 16.dp.toPx()
-        val tailW = 8.dp.toPx()
-        val tailH = 8.dp.toPx()
-
-        // Top-right corner
-        addRoundRect(RoundRect(tailW, 0f, w, h - tailH, CornerRadius(r), CornerRadius(r), CornerRadius(r), CornerRadius(0f)))
-        // Bottom-left tail
-        moveTo(tailW, h - tailH)
-        lineTo(0f, h)
-        lineTo(tailW + r, h - tailH)
-    }
-
     val outgoingNoTail = RoundedCornerShape(
         topStart = 16.dp,
         topEnd = 16.dp,

@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -15,7 +16,7 @@ import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -25,6 +26,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -78,17 +80,26 @@ fun CodeVerificationScreen(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 32.dp)
-                .padding(top = 32.dp)
+                .padding(horizontal = 24.dp)
+                .padding(top = 8.dp)
         ) {
-            IconButton(onClick = onBack) {
-                Icon(Icons.Rounded.ArrowBack, contentDescription = "Назад")
+            // ─── Back button ───
+            IconButton(
+                onClick = onBack,
+                modifier = Modifier.size(44.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Назад",
+                    tint = MaterialTheme.colorScheme.onBackground
+                )
             }
 
             Spacer(modifier = Modifier.height(24.dp))
 
+            // ─── Title ───
             Text(
-                text = if (via == "signal") "Код в Signal" else "Проверьте почту",
+                text = "Введите код",
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground
@@ -96,6 +107,7 @@ fun CodeVerificationScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
+            // ─── Subtitle ───
             Text(
                 text = if (via == "signal") "Отправили код в чат с @initial"
                 else "Отправили 5-значный код на $email",
@@ -105,6 +117,7 @@ fun CodeVerificationScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
+            // ─── Error message ───
             if (error != null) {
                 Text(
                     text = error!!,
@@ -117,7 +130,7 @@ fun CodeVerificationScreen(
             // ─── Code input boxes ───
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)
             ) {
                 repeat(5) { index ->
                     OutlinedTextField(
@@ -139,14 +152,22 @@ fun CodeVerificationScreen(
                         },
                         modifier = Modifier
                             .weight(1f)
+                            .height(56.dp)
+                            .aspectRatio(1f)
                             .focusRequester(focusRequesters[index]),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         singleLine = true,
                         textStyle = LocalTextStyle.current.copy(
                             textAlign = TextAlign.Center,
-                            fontSize = 22.sp
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Medium
                         ),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            cursorColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                        )
                     )
                 }
             }
@@ -166,7 +187,9 @@ fun CodeVerificationScreen(
                 shape = RoundedCornerShape(12.dp),
                 enabled = code.all { it.isNotEmpty() } && !isLoading,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f),
+                    contentColor = MaterialTheme.colorScheme.onPrimary
                 )
             ) {
                 if (isLoading) {
@@ -176,7 +199,11 @@ fun CodeVerificationScreen(
                         strokeWidth = 2.dp
                     )
                 } else {
-                    Text("Подтвердить", fontWeight = FontWeight.Medium)
+                    Text(
+                        "Подтвердить",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Medium
+                    )
                 }
             }
 
@@ -195,7 +222,10 @@ fun CodeVerificationScreen(
                         viewModel.startResendTimer()
                     }
                 }) {
-                    Text("Отправить код повторно")
+                    Text(
+                        "Отправить код повторно",
+                        color = MaterialTheme.colorScheme.primary
+                    )
                 }
             }
         }

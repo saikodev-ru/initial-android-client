@@ -5,12 +5,14 @@ import android.util.Log
 import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.FlashlightOff
 import androidx.compose.material.icons.filled.FlashlightOn
 import androidx.compose.material3.*
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -31,6 +33,7 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
 @Composable
+@OptIn(ExperimentalMaterial3Api::class)
 fun QrScannerScreen(
     viewModel: AuthViewModel,
     loginToken: String? = null,
@@ -106,7 +109,7 @@ fun QrScannerScreen(
                                 val cameraProvider = cameraProviderFuture.get()
 
                                 val preview = Preview.Builder().build().also {
-                                    it.surfaceProvider = previewView.surfaceProvider
+                                    it.setSurfaceProvider(previewView.surfaceProvider)
                                 }
 
                                 val imageAnalysis = ImageAnalysis.Builder()

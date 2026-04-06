@@ -9,6 +9,9 @@ import ru.saikodev.initial.data.api.dto.*
 import ru.saikodev.initial.data.preferences.TokenManager
 import ru.saikodev.initial.domain.model.*
 import ru.saikodev.initial.domain.repository.ChatRepository
+import ru.saikodev.initial.domain.repository.MessagesResult
+import ru.saikodev.initial.domain.repository.SendMessageResult
+import ru.saikodev.initial.domain.repository.UploadResult
 import ru.saikodev.initial.util.MediaUtils
 import java.io.File
 import javax.inject.Inject

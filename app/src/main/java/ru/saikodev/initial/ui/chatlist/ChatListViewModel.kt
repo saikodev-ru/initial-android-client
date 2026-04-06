@@ -1,5 +1,6 @@
 package ru.saikodev.initial.ui.chatlist
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -51,7 +52,11 @@ class ChatListViewModel @Inject constructor(
         viewModelScope.launch {
             val result = chatRepository.loadChats()
             if (result.isSuccess) {
-                _chats.value = result.getOrNull() ?: emptyList()
+                val chats = result.getOrNull() ?: emptyList()
+                Log.d("ChatListVM", "Loaded ${chats.size} chats")
+                _chats.value = chats
+            } else {
+                Log.e("ChatListVM", "Failed to load chats", result.exceptionOrNull())
             }
         }
     }
@@ -63,7 +68,10 @@ class ChatListViewModel @Inject constructor(
                 delay(5000)
                 val result = chatRepository.loadChats()
                 if (result.isSuccess) {
-                    _chats.value = result.getOrNull() ?: emptyList()
+                    val chats = result.getOrNull() ?: emptyList()
+                    if (chats.isNotEmpty()) {
+                        _chats.value = chats
+                    }
                 }
             }
         }

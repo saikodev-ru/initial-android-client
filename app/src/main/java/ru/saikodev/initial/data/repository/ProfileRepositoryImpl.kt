@@ -21,11 +21,12 @@ class ProfileRepositoryImpl @Inject constructor(
 
     override suspend fun getMe(): Result<User> {
         return try {
+            val token = tokenManager.getToken() ?: ""
             val res = api.getMe()
             if (res.ok && res.user != null) {
                 val user = res.user
                 tokenManager.saveUserJson(kotlinx.serialization.json.Json.encodeToString(UserDto.serializer(), user))
-                Result.success(user.toDomain())
+                Result.success(user.toDomain(token))
             } else {
                 Result.failure(Exception("Ошибка получения профиля"))
             }
@@ -60,8 +61,14 @@ class ProfileRepositoryImpl @Inject constructor(
     }
 }
 
-private fun UserDto.toDomain() = User(
+private fun resolveMediaUrl(url: String?, token: String): String? {
+    if (url == null) return null
+    if (url.startsWith("http") || url.startsWith("data:") || url.startsWith("blob:")) return url
+    return MediaUtils.getMediaUrl(url, token)
+}
+
+private fun UserDto.toDomain(token: String = "") = User(
     id = id, email = email, nickname = nickname,
-    signalId = signal_id, avatarUrl = avatar_url,
+    signalId = signal_id, avatarUrl = resolveMediaUrl(avatar_url, token),
     bio = bio, isVerified = is_verified, isTeamSignal = is_team_signal
 )

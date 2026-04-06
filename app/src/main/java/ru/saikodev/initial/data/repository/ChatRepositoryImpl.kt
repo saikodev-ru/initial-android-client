@@ -9,6 +9,7 @@ import ru.saikodev.initial.data.api.dto.*
 import ru.saikodev.initial.data.preferences.TokenManager
 import ru.saikodev.initial.domain.model.*
 import ru.saikodev.initial.domain.repository.*
+import android.util.Log
 import ru.saikodev.initial.util.MediaUtils
 import java.io.File
 import javax.inject.Inject
@@ -22,13 +23,15 @@ class ChatRepositoryImpl @Inject constructor(
 
     override suspend fun loadChats(): Result<List<Chat>> {
         return try {
+            val token = tokenManager.getToken() ?: ""
             val res = api.getMessages(chatId = 0)
             if (res.ok) {
-                Result.success((res.chats ?: emptyList()).map { it.toDomain() }.sortedWith(compareByDescending<Chat> { it.isPinned }.thenByDescending { it.lastTime ?: 0 }))
+                Result.success((res.chats ?: emptyList()).map { it.toDomain(token) }.sortedWith(compareByDescending<Chat> { it.isPinned }.thenByDescending { it.lastTime ?: 0 }))
             } else {
                 Result.failure(Exception(res.message ?: "Ошибка загрузки чатов"))
             }
         } catch (e: Exception) {
+            Log.e("ChatRepo", "loadChats failed", e)
             Result.failure(e)
         }
     }
@@ -45,7 +48,7 @@ class ChatRepositoryImpl @Inject constructor(
             if (res.ok) {
                 val token = tokenManager.getToken() ?: ""
                 val messages = (res.messages ?: emptyList()).map { it.toDomain(token) }
-                val chats = res.chats?.map { it.toDomain() }
+                val chats = res.chats?.map { it.toDomain(token) }
                 Result.success(MessagesResult(messages, chats, res.deleted_ids ?: emptyList(), res.last_read_id))
             } else {
                 Result.failure(Exception(res.message ?: "Ошибка"))
@@ -246,12 +249,12 @@ class ChatRepositoryImpl @Inject constructor(
 }
 
 // Extensions for DTO -> Domain mapping
-private fun ChatDto.toDomain() = Chat(
+private fun ChatDto.toDomain(token: String = "") = Chat(
     chatId = chat_id,
     partnerId = partner_id,
     partnerName = partner_name,
     partnerSignalId = partner_signal_id,
-    partnerAvatar = partner_avatar,
+    partnerAvatar = resolveMediaUrl(partner_avatar, token),
     partnerLastSeen = partner_last_seen,
     partnerIsTyping = (partner_is_typing ?: 0) == 1,
     partnerIsSystem = partner_is_system,
@@ -307,8 +310,14 @@ private fun mediaUrl(url: String?, token: String): String? {
     return MediaUtils.getMediaUrl(url, token)
 }
 
-private fun UserDto.toDomain() = User(
+private fun resolveMediaUrl(url: String?, token: String): String? {
+    if (url == null) return null
+    if (url.startsWith("http") || url.startsWith("data:") || url.startsWith("blob:")) return url
+    return MediaUtils.getMediaUrl(url, token)
+}
+
+private fun UserDto.toDomain(token: String = "") = User(
     id = id, email = email, nickname = nickname,
-    signalId = signal_id, avatarUrl = avatar_url,
+    signalId = signal_id, avatarUrl = resolveMediaUrl(avatar_url, token),
     bio = bio, isVerified = is_verified, isTeamSignal = is_team_signal
 )

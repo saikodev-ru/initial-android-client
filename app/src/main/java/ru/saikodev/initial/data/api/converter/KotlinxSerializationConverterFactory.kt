@@ -1,4 +1,4 @@
-package retrofit2.converter.kotlinx.serialization
+package ru.saikodev.initial.data.api.converter
 
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KSerializer

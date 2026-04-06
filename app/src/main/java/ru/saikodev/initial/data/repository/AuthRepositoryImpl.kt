@@ -7,6 +7,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import ru.saikodev.initial.domain.model.User
 import ru.saikodev.initial.domain.repository.AuthRepository
+import ru.saikodev.initial.util.MediaUtils
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -38,7 +39,7 @@ class AuthRepositoryImpl @Inject constructor(
             if (res.ok && res.token != null && res.user != null) {
                 tokenManager.saveToken(res.token)
                 tokenManager.saveUserJson(Json.encodeToString(res.user))
-                Result.success(res.user.toDomain())
+                Result.success(res.user.toDomain(res.token ?: ""))
             } else {
                 Result.failure(Exception(res.message ?: "Ошибка верификации"))
             }
@@ -57,7 +58,7 @@ class AuthRepositoryImpl @Inject constructor(
                 val me = api.getMe()
                 if (me.ok && me.user != null) {
                     tokenManager.saveUserJson(Json.encodeToString(me.user))
-                    Result.success(me.user.toDomain())
+                    Result.success(me.user.toDomain(tokenManager.getToken() ?: ""))
                 } else {
                     Result.failure(Exception("Ошибка получения профиля"))
                 }
@@ -100,7 +101,7 @@ class AuthRepositoryImpl @Inject constructor(
     override fun getSavedUser(): User? {
         val json = tokenManager.getUserJson() ?: return null
         return try {
-            Json.decodeFromString<UserDto>(json).toDomain()
+            Json.decodeFromString<UserDto>(json).toDomain(tokenManager.getToken() ?: "")
         } catch (e: Exception) {
             null
         }
@@ -128,7 +129,7 @@ class AuthRepositoryImpl @Inject constructor(
                 }
                 if (res.user != null) {
                     tokenManager.saveUserJson(Json.encodeToString(res.user))
-                    Result.success(res.user.toDomain())
+                    Result.success(res.user.toDomain(res.auth_token ?: tokenManager.getToken() ?: ""))
                 } else {
                     Result.success(null)
                 }
@@ -151,12 +152,18 @@ class AuthRepositoryImpl @Inject constructor(
 }
 
 // Extension
-private fun UserDto.toDomain() = User(
+private fun resolveMediaUrl(url: String?, token: String): String? {
+    if (url == null) return null
+    if (url.startsWith("http") || url.startsWith("data:") || url.startsWith("blob:")) return url
+    return MediaUtils.getMediaUrl(url, token)
+}
+
+private fun UserDto.toDomain(token: String = "") = User(
     id = id,
     email = email,
     nickname = nickname,
     signalId = signal_id,
-    avatarUrl = avatar_url,
+    avatarUrl = resolveMediaUrl(avatar_url, token),
     bio = bio,
     isVerified = is_verified,
     isTeamSignal = is_team_signal

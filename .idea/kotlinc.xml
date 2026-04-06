@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="Kotlin2JvmCompilerArguments">
+    <option name="jvmTarget" value="17" />
+  </component>
+  <component name="KotlinCodeInsightWorkspaceSettings">
+    <option name="useKotlinCodeInsightSettings" value="false" />
+  </component>
+  <component name="KotlinCompilerSettings">
+    <option name="compilerSettings">
+      <option name="languageVersion" value="2.0" />
+      <option name="apiVersion" value="2.0" />
+    </option>
+  </component>
+  <component name="KotlinJavaPackagesConfiguration">
+    <option name="isIgnored" value="true" />
+  </component>
+</project>

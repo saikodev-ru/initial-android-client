@@ -1,9 +1,8 @@
 package ru.saikodev.initial.ui.navigation
 
-import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.slideIntoContainer
-import androidx.compose.animation.slideOutOfContainer
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -59,16 +58,16 @@ fun AppNavigation() {
         navController = navController,
         startDestination = if (isLoggedIn) Screen.ChatList.route else Screen.Auth.route,
         enterTransition = {
-            slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Left, tween(300))
+            slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(300))
         },
         exitTransition = {
-            slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Left, tween(300))
+            slideOutHorizontally(targetOffsetX = { -it / 3 }, animationSpec = tween(300))
         },
         popEnterTransition = {
-            slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Right, tween(300))
+            slideInHorizontally(initialOffsetX = { -it / 3 }, animationSpec = tween(300))
         },
         popExitTransition = {
-            slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Right, tween(300))
+            slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(300))
         }
     ) {
         // ─── Auth ───

@@ -21,6 +21,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsBottomHeight
+import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -61,6 +63,7 @@ import ru.saikodev.initial.ui.theme.MuteIcon
 import ru.saikodev.initial.ui.theme.OnlineIndicator
 import ru.saikodev.initial.ui.theme.PinIcon
 import ru.saikodev.initial.ui.theme.SectionLabel
+import ru.saikodev.initial.ui.theme.TelegramColorPalette
 import ru.saikodev.initial.ui.theme.TelegramColors
 import ru.saikodev.initial.ui.theme.UnreadBadge
 import ru.saikodev.initial.ui.theme.VerifiedBadge

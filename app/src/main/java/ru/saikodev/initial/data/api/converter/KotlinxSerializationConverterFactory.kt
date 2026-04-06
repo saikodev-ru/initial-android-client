@@ -1,6 +1,5 @@
 package ru.saikodev.initial.data.api.converter
 
-import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
@@ -16,6 +15,9 @@ import java.lang.reflect.Type
  *
  * Uses reflection to resolve serializers from @Serializable companion objects,
  * which is more reliable than SerializersModule lookups for complex generic types.
+ *
+ * Compatible with Kotlin 2.0+ (uses companionObject + Java reflection instead of
+ * deprecated companionObjectInstance / javaClass).
  */
 class KotlinxSerializationConverterFactory(
     private val json: Json = Json { ignoreUnknownKeys = true }
@@ -50,12 +52,14 @@ class KotlinxSerializationConverterFactory(
         val kClass = type as? Class<*>
             ?: throw IllegalArgumentException("Cannot resolve serializer for type: $type, must be a Class")
         try {
-            val companion = kClass.kotlin.companionObjectInstance
+            val companionObj = kClass.kotlin.companionObject
                 ?: throw SerializationException(
                     "No companion object found for ${kClass.simpleName}. " +
                     "Ensure the class is annotated with @Serializable."
                 )
-            val method = companion.javaClass.getDeclaredMethod("serializer")
+            val companionFieldName = companionObj.simpleName ?: "Companion"
+            val companionInstance = kClass.getDeclaredField(companionFieldName).also { it.isAccessible = true }.get(null)
+            val method = companionInstance.java.getDeclaredMethod("serializer")
             method.isAccessible = true
             return method.invoke(null) as KSerializer<Any>
         } catch (e: SerializationException) {

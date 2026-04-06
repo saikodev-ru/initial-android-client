@@ -19,9 +19,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import ru.saikodev.initial.data.api.dto.SessionDto
 import ru.saikodev.initial.domain.model.User
 import ru.saikodev.initial.ui.theme.AppTheme
 import ru.saikodev.initial.util.MediaUtils
+import java.text.SimpleDateFormat
+import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -32,6 +35,8 @@ fun SettingsScreen(
 ) {
     val currentUser by viewModel.currentUser.collectAsState()
     val theme by viewModel.theme.collectAsState()
+    val sessions by viewModel.sessions.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
 
     LaunchedEffect(Unit) { viewModel.refreshProfile() }
 
@@ -97,6 +102,56 @@ fun SettingsScreen(
             }
 
             Spacer(modifier = Modifier.height(8.dp))
+
+            // Sessions section
+            Text("Активные сессии",
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                fontSize = 14.sp, fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary)
+
+            if (sessions == null) {
+                // Loading state
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                }
+            } else {
+                val sessionList = sessions ?: emptyList()
+                if (sessionList.isEmpty()) {
+                    Text("Нет активных сессий",
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                } else {
+                    sessionList.forEach { session ->
+                        SessionItem(
+                            session = session,
+                            onTerminate = { viewModel.terminateSession(session.id ?: return@forEach) }
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Link Device button
+            OutlinedButton(
+                onClick = { /* viewModel.createQrLink() */ },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Icon(Icons.Default.QrCode2, "QR", modifier = Modifier.size(20.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Связать устройство", fontSize = 16.sp)
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
 
             // Theme section
             Text("Оформление",
@@ -166,5 +221,65 @@ private fun ThemeOption(name: String, selected: Boolean, onClick: () -> Unit) {
         RadioButton(selected = selected, onClick = onClick)
         Spacer(modifier = Modifier.width(8.dp))
         Text(name, fontSize = 16.sp)
+    }
+}
+
+@Composable
+private fun SessionItem(
+    session: SessionDto,
+    onTerminate: () -> Unit
+) {
+    val dateFormat = remember { SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault()) }
+    val lastActive = session.last_active?.let { timestamp ->
+        dateFormat.format(Date(timestamp * 1000))
+    } ?: "—"
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Default.Devices,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    session.device ?: "Неизвестное устройство",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                "IP: ${session.ip ?: "—"}  •  $lastActive",
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        if (session.is_current != true) {
+            TextButton(
+                onClick = onTerminate,
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error
+                )
+            ) {
+                Text("Завершить", fontSize = 13.sp)
+            }
+        } else {
+            Text(
+                "Текущая",
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(end = 8.dp)
+            )
+        }
     }
 }

@@ -17,6 +17,8 @@ interface AuthRepository {
     suspend fun logout()
     fun getSavedUser(): User?
     suspend fun resendCode(email: String, forceEmail: Boolean): Result<String>
+    suspend fun updateProfile(nickname: String?, signalId: String?, bio: String?): Result<User>
+    suspend fun uploadAvatar(filePath: String): Result<String>
     suspend fun getSessions(): Result<SessionsResponse>
     suspend fun terminateSession(sessionId: String): Result<Unit>
 }

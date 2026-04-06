@@ -139,6 +139,11 @@ dependencies {
     implementation("com.google.zxing:core:3.5.2")
 
     // ──────────────────────────────────────────────
+    // Material Components (XML Themes)
+    // ──────────────────────────────────────────────
+    implementation("com.google.android.material:material:1.11.0")
+
+    // ──────────────────────────────────────────────
     // AndroidX Core
     // ──────────────────────────────────────────────
     implementation("androidx.core:core-ktx:1.12.0")

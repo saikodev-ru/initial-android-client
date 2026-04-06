@@ -1,47 +1,58 @@
-*.iml
-.gradle
-/local.properties
-/.idea
-.DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
-local.properties
+# Built application files
 *.apk
 *.ap_
 *.aab
 *.dex
 *.class
+
+# Generated files
 bin/
 gen/
 out/
-*.log
+/captures
+.externalNativeBuild
+.cxx
 .navigation/
 .kotlin/
-*.hprof
-.idea/caches
-.idea/libraries
+
+# Local configuration file (sdk path, etc)
+local.properties
+
+# Gradle files
+.gradle/
+/build
+/buildSrc/build/
+/app/build
+
+# IntelliJ / Android Studio
+*.iml
+*.iws
+*.ipr
+.idea/caches/
+.idea/libraries/
+.idea/modules/
 .idea/modules.xml
 .idea/workspace.xml
 .idea/navEditor.xml
 .idea/assetWizardSettings.xml
-.idea/dictionaries
-.idea/shelf
-.idea/artifacts
-.idea/compiler.xml
-.idea/jarRepositories.xml
-.idea/misc.xml
-.idea/vcs.xml
+.idea/dictionaries/
+.idea/shelf/
+.idea/artifacts/
 .idea/deploymentTargetDropDown.xml
 .idea/render.experimental.xml
-.idea/gradle.xml
 .idea/iconPatcher.xml
-.idea/inspectionProfiles
-.idea/jsonSchemas
+.idea/inspectionProfiles/
+.idea/jsonSchemas/
 .idea/runConfigurations.xml
 .idea/appInsightsSettings.xml
-.gradle/gradle-wrapper.jar
-!gradle-wrapper.properties
-/buildSrc/build/
-/app/build
+.idea/*.xml.bak
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Log files
+*.log
+
+# Profiling
+*.hprof

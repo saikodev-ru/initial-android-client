@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.matchParentSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -164,7 +163,7 @@ fun ChatScreen(
 
     // Build grouped chat items
     val chatItems = remember(messages, chat?.partnerId, chat?.isSavedMsgs) {
-        buildChatItems(messages, chat?.partnerId, chat?.isSavedMsgs)
+        buildChatItems(messages, chat?.partnerId, chat?.isSavedMsgs == true)
     }
 
     // Auto-scroll to bottom on new messages
@@ -240,14 +239,16 @@ fun ChatScreen(
                 }
 
                 items(
-                    items = chatItems,
-                    key = { item ->
+                    count = chatItems.size,
+                    key = { index ->
+                        val item = chatItems[index]
                         when (item) {
                             is ChatItem.DateHeader -> "date_${item.dateText}"
                             is ChatItem.MessageItem -> "msg_${item.message.id}"
                         }
                     }
-                ) { item ->
+                ) { index ->
+                    val item = chatItems[index]
                     when (item) {
                         is ChatItem.DateHeader -> {
                             DateSeparator(
@@ -683,7 +684,7 @@ private fun MediaContent(
                     if (message.mediaSpoiler) {
                         Box(
                             modifier = Modifier
-                                .matchParentSize()
+                                .fillMaxSize()
                                 .background(Color.Black.copy(alpha = 0.8f)),
                             contentAlignment = Alignment.Center
                         ) {
@@ -731,7 +732,7 @@ private fun MediaContent(
                     if (message.mediaSpoiler) {
                         Box(
                             modifier = Modifier
-                                .matchParentSize()
+                                .fillMaxSize()
                                 .background(Color.Black.copy(alpha = 0.8f)),
                             contentAlignment = Alignment.Center
                         ) {

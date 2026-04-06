@@ -309,9 +309,10 @@ private fun ChatListContent(
             // Pinned section
             if (pinnedChats.isNotEmpty()) {
                 items(
-                    items = pinnedChats,
-                    key = { "pinned_${it.chatId}" }
-                ) { chat ->
+                    count = pinnedChats.size,
+                    key = { index -> "pinned_${pinnedChats[index].chatId}" }
+                ) { index ->
+                    val chat = pinnedChats[index]
                     Column {
                         ChatItemRow(
                             chat = chat,
@@ -340,9 +341,10 @@ private fun ChatListContent(
 
             // Regular chats
             items(
-                items = regularChats,
-                key = { "chat_${it.chatId}" }
-            ) { chat ->
+                count = regularChats.size,
+                key = { index -> "chat_${regularChats[index].chatId}" }
+            ) { index ->
+                val chat = regularChats[index]
                 Column {
                     ChatItemRow(
                         chat = chat,
@@ -392,9 +394,10 @@ private fun SearchResultsContent(
             // Filtered chat results
             if (searchResults.isNotEmpty()) {
                 items(
-                    items = searchResults,
-                    key = { it.chatId }
-                ) { chat ->
+                    count = searchResults.size,
+                    key = { index -> searchResults[index].chatId }
+                ) { index ->
+                    val chat = searchResults[index]
                     Column {
                         ChatItemRow(
                             chat = chat,
@@ -418,9 +421,10 @@ private fun SearchResultsContent(
                     SectionLabel(text = "Глобальный поиск")
                 }
                 items(
-                    items = userResults,
-                    key = { "user_${it.id}" }
-                ) { user ->
+                    count = userResults.size,
+                    key = { index -> "user_${userResults[index].id}" }
+                ) { index ->
+                    val user = userResults[index]
                     Column {
                         UserSearchItem(user = user)
                         if (user != userResults.last()) {

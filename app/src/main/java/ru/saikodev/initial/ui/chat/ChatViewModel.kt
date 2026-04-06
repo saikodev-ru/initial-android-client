@@ -1,29 +1,37 @@
 package ru.saikodev.initial.ui.chat
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import ru.saikodev.initial.domain.model.Chat
 import ru.saikodev.initial.domain.model.Message
+import ru.saikodev.initial.domain.repository.AuthRepository
 import ru.saikodev.initial.domain.repository.ChatRepository
 import javax.inject.Inject
 
 @HiltViewModel
 class ChatViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
-    private val chatRepository: ChatRepository
+    private val chatRepository: ChatRepository,
+    private val authRepository: AuthRepository,
+    @ApplicationContext private val appContext: Context
 ) : ViewModel() {
 
     private val chatId: Int = savedStateHandle["chatId"] ?: 0
     private val signalId: String? = savedStateHandle["signalId"]
     private val partnerName: String? = savedStateHandle["partnerName"]
 
+    val currentUserId: Int get() = authRepository.getSavedUser()?.id ?: 0
     val chatIdValue: Int get() = chatId
     val signalIdValue: String? get() = signalId
     val partnerNameValue: String? get() = partnerName
@@ -42,6 +50,12 @@ class ChatViewModel @Inject constructor(
 
     private val _chatInfo = MutableStateFlow<Chat?>(null)
     val chatInfo: StateFlow<Chat?> = _chatInfo
+
+    private val _replyTo = MutableStateFlow<Int?>(null)
+    val replyTo: StateFlow<Int?> = _replyTo
+
+    private val _editingMessageId = MutableStateFlow<Int?>(null)
+    val editingMessageId: StateFlow<Int?> = _editingMessageId
 
     private var pollJob: Job? = null
     private var lastMessageId: Int = 0
@@ -108,11 +122,13 @@ class ChatViewModel @Inject constructor(
     fun sendMessage(text: String) {
         if (text.isBlank() || chatId <= 0) return
         val targetSignalId = signalId ?: return
+        val replyToId = _replyTo.value
+        _replyTo.value = null
 
         viewModelScope.launch {
             _isSending.value = true
             try {
-                val result = chatRepository.sendMessage(targetSignalId, text.trim(), null)
+                val result = chatRepository.sendMessage(targetSignalId, text.trim(), replyToId)
                 if (result.isFailure) {
                     _error.value = result.exceptionOrNull()?.message
                 }
@@ -133,7 +149,21 @@ class ChatViewModel @Inject constructor(
     fun editMessage(messageId: Int, newText: String) {
         viewModelScope.launch {
             chatRepository.editMessage(messageId, newText)
+            _editingMessageId.value = null
         }
+    }
+
+    fun startEditing(messageId: Int, currentText: String) {
+        _editingMessageId.value = messageId
+    }
+
+    fun setReplyTo(messageId: Int?) {
+        _replyTo.value = messageId
+    }
+
+    fun copyMessageText(text: String) {
+        val clipboard = appContext.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        clipboard.setPrimaryClip(ClipData.newPlainText("message", text))
     }
 
     fun loadMoreMessages() {

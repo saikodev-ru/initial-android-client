@@ -159,3 +159,20 @@ data class LinkPreviewResponse(
 
 @Serializable
 data class UpdatePresenceResponse(val ok: Boolean = false)
+
+@Serializable
+data class CallSignalDto(
+    val id: Int = 0,
+    val sender_id: Int? = null,
+    val target_id: Int? = null,
+    val type: String? = null,
+    val payload: String? = null,
+    val created_at: Long? = null
+)
+
+@Serializable
+data class CallSignalsResponse(
+    val ok: Boolean = false,
+    val signals: List<CallSignalDto>? = null,
+    val last_id: Int? = null
+)

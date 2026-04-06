@@ -100,4 +100,23 @@ interface InitialApi {
     // Link preview
     @GET("link_preview")
     suspend fun getLinkPreview(@Query("url") url: String): LinkPreviewResponse
+
+    // Sessions management
+    @DELETE("sessions")
+    suspend fun terminateSession(@Query("session_id") sessionId: String): ApiError
+
+    // Voice message
+    @Multipart
+    @POST("send_voice_message")
+    suspend fun sendVoiceMessage(
+        @Part voice: MultipartBody.Part,
+        @Part("to_signal_id") toSignalId: String,
+        @Part("reply_to") replyTo: Int? = null,
+        @Part("voice_duration") voiceDuration: Int? = null,
+        @Part("voice_waveform") voiceWaveform: String? = null
+    ): SendMessageResponse
+
+    // Call signals
+    @GET("get_call_signals")
+    suspend fun getCallSignals(@Query("last_id") lastId: Int = 0): CallSignalsResponse
 }

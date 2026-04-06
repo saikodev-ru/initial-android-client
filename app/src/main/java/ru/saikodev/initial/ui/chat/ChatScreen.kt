@@ -9,9 +9,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.matchParentSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -30,8 +27,6 @@ import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.Reply
 import androidx.compose.material.icons.rounded.Send
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -41,6 +36,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -48,8 +44,8 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -57,8 +53,11 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import kotlinx.coroutines.flow.distinctUntilChanged
+import ru.saikodev.initial.domain.model.Chat
 import ru.saikodev.initial.domain.model.Message
+import ru.saikodev.initial.domain.model.Reaction
 import ru.saikodev.initial.ui.theme.BubbleShapes
+import ru.saikodev.initial.ui.theme.DateSeparator
 import ru.saikodev.initial.ui.theme.InitialAvatar
 import ru.saikodev.initial.ui.theme.OnlineIndicator
 import ru.saikodev.initial.ui.theme.ReadStatusIcon
@@ -66,7 +65,6 @@ import ru.saikodev.initial.ui.theme.TelegramColorPalette
 import ru.saikodev.initial.ui.theme.TelegramColors
 import ru.saikodev.initial.ui.theme.TypingIndicator
 import ru.saikodev.initial.ui.theme.VerifiedBadge
-import ru.saikodev.initial.ui.theme.DateSeparator
 import ru.saikodev.initial.util.MediaUtils
 
 // ─── Chat items for grouped display ───────────────────
@@ -83,11 +81,7 @@ private sealed class ChatItem {
     ) : ChatItem()
 }
 
-// ─── Fully rounded shape for middle/first bubbles ─────
-
 private val BubbleRounded = RoundedCornerShape(16.dp)
-
-// ─── Build grouped chat items ─────────────────────────
 
 private fun buildChatItems(
     messages: List<Message>,
@@ -103,7 +97,6 @@ private fun buildChatItems(
         val msg = messages[i]
         val dayStart = (msg.sentAt ?: 0) / 86400
 
-        // Insert date separator when day changes
         if (dayStart != lastDayStart) {
             items.add(ChatItem.DateHeader(MediaUtils.formatDate(msg.sentAt ?: 0)))
             lastDayStart = dayStart
@@ -137,11 +130,6 @@ private fun buildChatItems(
     return items
 }
 
-// ═══════════════════════════════════════════════════════
-//  ChatScreen — Telegram-style chat
-// ═══════════════════════════════════════════════════════
-
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(
     chatId: Int,
@@ -158,22 +146,20 @@ fun ChatScreen(
 
     val listState = rememberLazyListState()
 
-    // Quick lookup map for reply previews inside bubbles
-    val messageMap = remember(messages) { messages.associateBy { it.id } }
+    val messageMap = remember(messages) {
+        messages.associateBy<Message, Int> { it.id }
+    }
 
-    // Build grouped chat items
     val chatItems = remember(messages, chat?.partnerId, chat?.isSavedMsgs) {
         buildChatItems(messages, chat?.partnerId, chat?.isSavedMsgs)
     }
 
-    // Auto-scroll to bottom on new messages
-    LaunchedEffect(messages.size) {
-        if (messages.isNotEmpty()) {
+    LaunchedEffect(chatItems.size) {
+        if (chatItems.isNotEmpty()) {
             listState.animateScrollToItem(chatItems.size)
         }
     }
 
-    // Load more when scrolled near top
     LaunchedEffect(listState) {
         snapshotFlow { listState.firstVisibleItemIndex }
             .distinctUntilChanged()
@@ -189,17 +175,17 @@ fun ChatScreen(
             .fillMaxSize()
             .background(palette.background)
     ) {
-        // ─── Top bar ──────────────────────────────────
         ChatTopBar(
             chat = chat,
             palette = palette,
             onBack = onBack
         )
 
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+        androidx.compose.material3.HorizontalDivider(
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+        )
 
-        // ─── Messages area ────────────────────────────
-        if (isLoading && messages.isEmpty()) {
+        if (isLoading && chatItems.isEmpty()) {
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -217,10 +203,8 @@ fun ChatScreen(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp),
-                reverseLayout = false
+                    .padding(horizontal = 8.dp)
             ) {
-                // Load-more spinner at the top
                 if (isLoadingMore) {
                     item(key = "loading_more") {
                         Box(
@@ -239,15 +223,15 @@ fun ChatScreen(
                 }
 
                 items(
-                    items = chatItems,
-                    key = { item ->
-                        when (item) {
+                    count = chatItems.size,
+                    key = { index ->
+                        when (val item = chatItems[index]) {
                             is ChatItem.DateHeader -> "date_${item.dateText}"
                             is ChatItem.MessageItem -> "msg_${item.message.id}"
                         }
                     }
-                ) { item ->
-                    when (item) {
+                ) { index ->
+                    when (val item = chatItems[index]) {
                         is ChatItem.DateHeader -> {
                             DateSeparator(
                                 text = item.dateText,
@@ -255,10 +239,9 @@ fun ChatScreen(
                                 themeColors = palette
                             )
                         }
-
                         is ChatItem.MessageItem -> {
                             val topPadding = if (item.isFirstInGroup) 8.dp else 2.dp
-                            val replyMessage = item.message.replyTo?.let { messageMap[it] }
+                            val replyMessage = item.message.replyTo?.let { rid -> messageMap[rid] }
 
                             MessageBubble(
                                 message = item.message,
@@ -276,23 +259,21 @@ fun ChatScreen(
                     }
                 }
 
-                // Bottom spacing so last message isn't flush with input bar
                 item(key = "bottom_spacer") {
                     Spacer(modifier = Modifier.height(6.dp))
                 }
             }
         }
 
-        // ─── Reply composition bar ───────────────────
-        if (replyTo != null) {
+        val currentReplyTo = replyTo
+        if (currentReplyTo != null) {
             ReplyComposeBar(
-                replyTo = replyTo!!,
+                replyTo = currentReplyTo,
                 palette = palette,
                 onClose = { viewModel.setReplyTo(null) }
             )
         }
 
-        // ─── Input bar ────────────────────────────────
         ChatInputBar(
             messageText = messageText,
             onTextChanged = { viewModel.onMessageTextChanged(it) },
@@ -302,13 +283,9 @@ fun ChatScreen(
     }
 }
 
-// ═══════════════════════════════════════════════════════
-//  Top bar — custom Telegram-style header
-// ═══════════════════════════════════════════════════════
-
 @Composable
 private fun ChatTopBar(
-    chat: ru.saikodev.initial.domain.model.Chat?,
+    chat: Chat?,
     palette: TelegramColorPalette,
     onBack: () -> Unit
 ) {
@@ -323,7 +300,6 @@ private fun ChatTopBar(
                 .padding(start = 4.dp, end = 12.dp, top = 8.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Back button
             IconButton(
                 onClick = onBack,
                 modifier = Modifier.size(40.dp)
@@ -337,7 +313,6 @@ private fun ChatTopBar(
 
             Spacer(modifier = Modifier.width(4.dp))
 
-            // Avatar with online indicator
             Box {
                 InitialAvatar(
                     name = chat?.displayName,
@@ -358,7 +333,6 @@ private fun ChatTopBar(
 
             Spacer(modifier = Modifier.width(12.dp))
 
-            // Name + status
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
@@ -379,56 +353,36 @@ private fun ChatTopBar(
                     }
                 }
 
-                // Status text
-                Crossfade(
-                    targetState = Triple(
-                        chat?.partnerIsTyping == true,
-                        chat?.isOnline == true,
-                        chat?.partnerLastSeen
-                    ),
-                    label = "status"
-                ) { (isTyping, isOnline, lastSeen) ->
-                    when {
-                        isTyping -> Row(
+                val statusText = when {
+                    chat?.partnerIsTyping == true -> "typing"
+                    chat?.isOnline == true -> "online"
+                    chat?.partnerLastSeen != null -> "last_seen"
+                    else -> "offline"
+                }
+                val statusLastSeen = chat?.partnerLastSeen
+
+                Crossfade(targetState = statusText, label = "status") { state ->
+                    when (state) {
+                        "typing" -> Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             TypingIndicator(modifier = Modifier.size(14.dp))
-                            Text(
-                                "печатает\u2026",
-                                fontSize = 12.sp,
-                                color = palette.online,
-                                fontWeight = FontWeight.Normal
-                            )
+                            Text("печатает\u2026", fontSize = 12.sp, color = palette.online)
                         }
-                        isOnline -> Text(
-                            "в сети",
+                        "online" -> Text("в сети", fontSize = 12.sp, color = palette.online)
+                        "last_seen" -> Text(
+                            statusLastSeen?.let { MediaUtils.formatLastSeen(it) } ?: "не в сети",
                             fontSize = 12.sp,
-                            color = palette.online,
-                            fontWeight = FontWeight.Normal
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        lastSeen != null -> Text(
-                            MediaUtils.formatLastSeen(lastSeen),
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontWeight = FontWeight.Normal
-                        )
-                        else -> Text(
-                            "не в сети",
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontWeight = FontWeight.Normal
-                        )
+                        else -> Text("не в сети", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
         }
     }
 }
-
-// ═══════════════════════════════════════════════════════
-//  Message bubble
-// ═══════════════════════════════════════════════════════
 
 @Composable
 private fun MessageBubble(
@@ -464,7 +418,6 @@ private fun MessageBubble(
         verticalAlignment = Alignment.Bottom
     ) {
         if (!isOutgoing) {
-            // Avatar column — 36dp avatar, always reserves space for alignment
             Box(
                 modifier = Modifier.width(40.dp),
                 contentAlignment = Alignment.BottomStart
@@ -480,7 +433,6 @@ private fun MessageBubble(
             Spacer(modifier = Modifier.width(4.dp))
         }
 
-        // Bubble
         Surface(
             color = bubbleBg,
             shape = bubbleShape,
@@ -489,13 +441,9 @@ private fun MessageBubble(
         ) {
             Column(
                 modifier = Modifier.padding(
-                    start = 11.dp,
-                    end = 11.dp,
-                    top = 7.dp,
-                    bottom = 6.dp
+                    start = 11.dp, end = 11.dp, top = 7.dp, bottom = 6.dp
                 )
             ) {
-                // Sender name (incoming, first in group)
                 if (showSenderName && message.nickname != null) {
                     Text(
                         text = message.nickname!!,
@@ -510,61 +458,49 @@ private fun MessageBubble(
                     }
                 }
 
-                // Reply preview inside bubble
                 if (message.replyTo != null) {
-                    InBubbleReplyPreview(
-                        replyMessage = replyMessage,
-                        isOutgoing = isOutgoing,
-                        palette = palette
-                    )
+                    InBubbleReplyPreview(replyMessage, isOutgoing, palette)
                     if (!message.body.isNullOrBlank() || message.mediaUrl != null) {
                         Spacer(modifier = Modifier.height(4.dp))
                     }
                 }
 
-                // Media content
-                if (!message.mediaUrl.isNullOrBlank()) {
-                    MediaContent(message = message, isOutgoing = isOutgoing)
+                if (!message.mediaUrl.isNullOrBlank() && message.mediaType == "image") {
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp)),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        AsyncImage(
+                            model = message.mediaUrl,
+                            contentDescription = message.mediaFileName ?: "Image",
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(200.dp)
+                        )
+                    }
                     if (!message.body.isNullOrBlank()) {
                         Spacer(modifier = Modifier.height(4.dp))
                     }
                 }
 
-                // Document attachment
-                if (message.mediaType == "document" && message.mediaFileName != null) {
-                    DocumentAttachment(message = message, textColor = textColor)
-                    if (!message.body.isNullOrBlank()) {
-                        Spacer(modifier = Modifier.height(4.dp))
-                    }
-                }
-
-                // Message body text
                 if (!message.body.isNullOrBlank()) {
                     val displayText = if (message.mediaSpoiler) {
                         MediaUtils.hideSpoilerText(message.body)
                     } else {
                         message.body
                     }
-                    Text(
-                        text = displayText,
-                        fontSize = 15.sp,
-                        color = textColor,
-                        lineHeight = 20.sp
-                    )
+                    Text(text = displayText, fontSize = 15.sp, color = textColor, lineHeight = 20.sp)
                 }
 
-                // Bottom row: time, edited, read status
                 Row(
                     modifier = Modifier.align(Alignment.End),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(3.dp)
                 ) {
                     if (message.isEdited && message.mediaUrl.isNullOrBlank()) {
-                        Text(
-                            "ред.",
-                            fontSize = 11.sp,
-                            color = timeColor
-                        )
+                        Text("ред.", fontSize = 11.sp, color = timeColor)
                     }
                     Text(
                         message.sentAt?.let { MediaUtils.formatTime(it) } ?: "",
@@ -580,30 +516,18 @@ private fun MessageBubble(
                     }
                 }
 
-                // Reactions
                 if (message.reactions.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(4.dp))
-                    ReactionPills(
-                        reactions = message.reactions,
-                        isOutgoing = isOutgoing,
-                        bubbleBg = bubbleBg,
-                        textColor = textColor,
-                        palette = palette
-                    )
+                    ReactionPills(message.reactions, isOutgoing, bubbleBg, textColor, palette)
                 }
             }
         }
 
-        // Outgoing side spacer (mirror of avatar width for alignment)
         if (isOutgoing) {
             Spacer(modifier = Modifier.width(8.dp))
         }
     }
 }
-
-// ═══════════════════════════════════════════════════════
-//  Reply preview inside message bubble
-// ═══════════════════════════════════════════════════════
 
 @Composable
 private fun InBubbleReplyPreview(
@@ -622,11 +546,10 @@ private fun InBubbleReplyPreview(
             .padding(start = 0.dp, top = 5.dp, bottom = 5.dp, end = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Left colored bar
         Box(
             modifier = Modifier
                 .width(2.dp)
-                .fillMaxHeight()
+                .height(24.dp)
                 .background(palette.replyBar)
         )
         Spacer(modifier = Modifier.width(6.dp))
@@ -652,150 +575,9 @@ private fun InBubbleReplyPreview(
     }
 }
 
-// ═══════════════════════════════════════════════════════
-//  Media content (image / video)
-// ═══════════════════════════════════════════════════════
-
-@Composable
-private fun MediaContent(
-    message: Message,
-    isOutgoing: Boolean
-) {
-    when (message.mediaType) {
-        "image" -> {
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(10.dp)),
-                shape = RoundedCornerShape(10.dp)
-            ) {
-                Box {
-                    AsyncImage(
-                        model = message.mediaUrl,
-                        contentDescription = message.mediaFileName ?: "Image",
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(200.dp)
-                    )
-                    // Spoiler overlay
-                    if (message.mediaSpoiler) {
-                        Box(
-                            modifier = Modifier
-                                .matchParentSize()
-                                .background(Color.Black.copy(alpha = 0.8f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                Icons.Rounded.Close,
-                                contentDescription = "Спойлер",
-                                tint = Color.White.copy(alpha = 0.7f),
-                                modifier = Modifier.size(32.dp)
-                            )
-                        }
-                    }
-                }
-            }
-        }
-        "video" -> {
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(10.dp))
-                    .clickable { /* TODO: open video player */ },
-                shape = RoundedCornerShape(10.dp)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    AsyncImage(
-                        model = message.mediaUrl,
-                        contentDescription = message.mediaFileName ?: "Video",
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(200.dp)
-                    )
-                    // Play button overlay
-                    Surface(
-                        color = Color.Black.copy(alpha = 0.5f),
-                        shape = RoundedCornerShape(28.dp)
-                    ) {
-                        Icon(
-                            Icons.Rounded.Send,
-                            contentDescription = "Play",
-                            tint = Color.White,
-                            modifier = Modifier
-                                .size(48.dp)
-                                .padding(8.dp)
-                        )
-                    }
-                    if (message.mediaSpoiler) {
-                        Box(
-                            modifier = Modifier
-                                .matchParentSize()
-                                .background(Color.Black.copy(alpha = 0.8f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                Icons.Rounded.Close,
-                                contentDescription = "Спойлер",
-                                tint = Color.White.copy(alpha = 0.7f),
-                                modifier = Modifier.size(32.dp)
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-// ═══════════════════════════════════════════════════════
-//  Document attachment chip
-// ═══════════════════════════════════════════════════════
-
-@Composable
-private fun DocumentAttachment(
-    message: Message,
-    textColor: Color
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .background(textColor.copy(alpha = 0.08f))
-            .padding(horizontal = 10.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = MediaUtils.getDocumentIcon(message.mediaFileExt ?: ""),
-            fontSize = 28.sp
-        )
-        Spacer(modifier = Modifier.width(10.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = message.mediaFileName ?: "Документ",
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-                color = textColor,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            if (message.mediaFileSize != null) {
-                Text(
-                    text = MediaUtils.formatFileSize(message.mediaFileSize),
-                    fontSize = 12.sp,
-                    color = textColor.copy(alpha = 0.5f)
-                )
-            }
-        }
-    }
-}
-
-// ═══════════════════════════════════════════════════════
-//  Reaction pills
-// ═══════════════════════════════════════════════════════
-
 @Composable
 private fun ReactionPills(
-    reactions: List<ru.saikodev.initial.domain.model.Reaction>,
+    reactions: List<Reaction>,
     isOutgoing: Boolean,
     bubbleBg: Color,
     textColor: Color,
@@ -811,19 +593,13 @@ private fun ReactionPills(
             } else {
                 Color.White.copy(alpha = 0.12f)
             }
-            Surface(
-                color = pillBg,
-                shape = RoundedCornerShape(12.dp)
-            ) {
+            Surface(color = pillBg, shape = RoundedCornerShape(12.dp)) {
                 Row(
                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-                    Text(
-                        text = reaction.emoji,
-                        fontSize = 14.sp
-                    )
+                    Text(text = reaction.emoji, fontSize = 14.sp)
                     if (reaction.count > 1) {
                         Text(
                             text = reaction.count.toString(),
@@ -837,10 +613,6 @@ private fun ReactionPills(
         }
     }
 }
-
-// ═══════════════════════════════════════════════════════
-//  Reply composition bar (shown above input when replying)
-// ═══════════════════════════════════════════════════════
 
 @Composable
 private fun ReplyComposeBar(
@@ -859,7 +631,6 @@ private fun ReplyComposeBar(
                 .padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Reply icon + colored bar
             Column(
                 modifier = Modifier
                     .width(36.dp)
@@ -874,10 +645,7 @@ private fun ReplyComposeBar(
                     modifier = Modifier.size(20.dp)
                 )
             }
-
             Spacer(modifier = Modifier.width(8.dp))
-
-            // Reply preview text
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = replyTo.nickname ?: "Ответ",
@@ -895,12 +663,7 @@ private fun ReplyComposeBar(
                     overflow = TextOverflow.Ellipsis
                 )
             }
-
-            // Close button
-            IconButton(
-                onClick = onClose,
-                modifier = Modifier.size(36.dp)
-            ) {
+            IconButton(onClick = onClose, modifier = Modifier.size(36.dp)) {
                 Icon(
                     Icons.Rounded.Close,
                     contentDescription = "Отмена",
@@ -911,10 +674,6 @@ private fun ReplyComposeBar(
         }
     }
 }
-
-// ═══════════════════════════════════════════════════════
-//  Input bar — Telegram-style with mic/send transition
-// ═══════════════════════════════════════════════════════
 
 @Composable
 private fun ChatInputBar(
@@ -934,15 +693,10 @@ private fun ChatInputBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(palette.surface)
-                .padding(start = 4.dp, end = 4.dp, top = 6.dp, bottom = 6.dp)
-                .heightIn(min = 48.dp),
+                .padding(start = 4.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Attachment button
-            IconButton(
-                onClick = { /* TODO: open attachment picker */ },
-                modifier = Modifier.size(40.dp)
-            ) {
+            IconButton(onClick = { /* TODO: attachment picker */ }, modifier = Modifier.size(40.dp)) {
                 Icon(
                     Icons.Rounded.AttachFile,
                     contentDescription = "Прикрепить",
@@ -953,7 +707,6 @@ private fun ChatInputBar(
 
             Spacer(modifier = Modifier.width(2.dp))
 
-            // Text field
             OutlinedTextField(
                 value = messageText,
                 onValueChange = onTextChanged,
@@ -981,16 +734,9 @@ private fun ChatInputBar(
 
             Spacer(modifier = Modifier.width(2.dp))
 
-            // Mic / Send button with animated transition
-            Crossfade(
-                targetState = hasText,
-                label = "send_button"
-            ) { showSend ->
+            Crossfade(targetState = hasText, label = "send_button") { showSend ->
                 if (showSend) {
-                    IconButton(
-                        onClick = onSend,
-                        modifier = Modifier.size(40.dp)
-                    ) {
+                    IconButton(onClick = onSend, modifier = Modifier.size(40.dp)) {
                         Icon(
                             Icons.Rounded.Send,
                             contentDescription = "Отправить",
@@ -999,10 +745,7 @@ private fun ChatInputBar(
                         )
                     }
                 } else {
-                    IconButton(
-                        onClick = { /* TODO: voice recording */ },
-                        modifier = Modifier.size(40.dp)
-                    ) {
+                    IconButton(onClick = { /* TODO: voice recording */ }, modifier = Modifier.size(40.dp)) {
                         Icon(
                             Icons.Rounded.Mic,
                             contentDescription = "Голосовое сообщение",

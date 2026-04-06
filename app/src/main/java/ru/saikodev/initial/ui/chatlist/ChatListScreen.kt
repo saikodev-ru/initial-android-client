@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -61,6 +62,7 @@ import ru.saikodev.initial.ui.theme.MuteIcon
 import ru.saikodev.initial.ui.theme.OnlineIndicator
 import ru.saikodev.initial.ui.theme.PinIcon
 import ru.saikodev.initial.ui.theme.SectionLabel
+import ru.saikodev.initial.ui.theme.TelegramColorPalette
 import ru.saikodev.initial.ui.theme.TelegramColors
 import ru.saikodev.initial.ui.theme.UnreadBadge
 import ru.saikodev.initial.ui.theme.VerifiedBadge
@@ -97,14 +99,8 @@ fun ChatListScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .imePadding()
+                .statusBarsPadding()
         ) {
-            // ─── Status bar spacer ───
-            Spacer(
-                Modifier
-                    .fillMaxWidth()
-                    .windowInsetsTopHeight(WindowInsets.statusBars)
-            )
-
             // ─── Header ───
             ChatListHeader(
                 onSettingsClick = onSettingsClick
@@ -141,9 +137,7 @@ fun ChatListScreen(
                     onClick = { /* Open profile */ }
                 )
                 Spacer(
-                    Modifier
-                        .fillMaxWidth()
-                        .windowInsetsBottomHeight(WindowInsets.navigationBars)
+                    Modifier.height(8.dp)
                 )
             }
         }
@@ -685,8 +679,7 @@ private fun BottomProfileBar(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
                         .padding(bottom = 0.dp, end = 0.dp),
-                    size = 10.dp,
-                    themeColors = TelegramColors.current()
+                    size = 10.dp
                 )
             }
             Spacer(modifier = Modifier.width(12.dp))

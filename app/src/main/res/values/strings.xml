@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Initial</string>
+    <string name="login">Вход</string>
+    <string name="messages">Сообщения</string>
+    <string name="settings">Настройки</string>
+    <string name="send">Отправить</string>
+    <string name="cancel">Отмена</string>
+    <string name="search">Поиск</string>
+    <string name="no_chats">Нет диалогов</string>
+    <string name="online">в сети</string>
+    <string name="offline">не в сети</string>
+    <string name="typing">печатает…</string>
+    <string name="message_hint">Сообщение…</string>
+    <string name="enter_email">Ваш email</string>
+    <string name="continue_btn">Продолжить</string>
+    <string name="verify_code">Подтвердить</string>
+    <string name="resend">Отправить код повторно</string>
+    <string name="start">Начать</string>
+    <string name="logout">Выйти</string>
+    <string name="edit_profile">Изменить профиль</string>
+    <string name="notifications">Уведомления</string>
+    <string name="appearance">Оформление</string>
+    <string name="about">О приложении</string>
+</resources>

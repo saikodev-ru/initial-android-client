@@ -3,16 +3,20 @@ package ru.saikodev.initial.ui.auth
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import ru.saikodev.initial.domain.model.User
 import ru.saikodev.initial.domain.repository.AuthRepository
+import ru.saikodev.initial.domain.repository.ProfileRepository
 import javax.inject.Inject
 
 @HiltViewModel
 class AuthViewModel @Inject constructor(
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val profileRepository: ProfileRepository
 ) : ViewModel() {
 
     private val _isLoading = MutableStateFlow(false)
@@ -26,6 +30,9 @@ class AuthViewModel @Inject constructor(
 
     private val _qrStatus = MutableStateFlow<QrStatus>(QrStatus.Loading)
     val qrStatus: StateFlow<QrStatus> = _qrStatus
+
+    private val _qrApprovedUser = MutableStateFlow<User?>(null)
+    val qrApprovedUser: StateFlow<User?> = _qrApprovedUser
 
     private val _resendTimer = MutableStateFlow(0)
     val resendTimer: StateFlow<Int> = _resendTimer
@@ -41,35 +48,47 @@ class AuthViewModel @Inject constructor(
 
     fun clearError() { _error.value = null }
 
-    fun sendCode(email: String, onSuccess: (String, String) -> Unit) {
+    /**
+     * Send verification code to email.
+     * onResult is called with (email, via) on success.
+     */
+    fun sendCode(email: String, onResult: (String, String) -> Unit) {
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
             val result = authRepository.sendCode(email)
             _isLoading.value = false
             if (result.isSuccess) {
-                // Default via, server can override
-                onSuccess(email, "email")
+                val via = result.getOrNull() ?: "email"
+                onResult(email, via)
             } else {
                 _error.value = result.exceptionOrNull()?.message ?: "Ошибка отправки кода"
             }
         }
     }
 
-    fun verifyCode(email: String, code: String, onSuccess: () -> Unit) {
+    /**
+     * Verify email code.
+     * onVerified is called with the authenticated User on success.
+     */
+    fun verifyCode(email: String, code: String, onVerified: (User) -> Unit) {
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
             val result = authRepository.verifyCode(email, code)
             _isLoading.value = false
             if (result.isSuccess) {
-                onSuccess()
+                val user = result.getOrNull()!!
+                onVerified(user)
             } else {
                 _error.value = result.exceptionOrNull()?.message ?: "Неверный код"
             }
         }
     }
 
+    /**
+     * Create user profile with nickname and optional signal_id.
+     */
     fun createProfile(nickname: String, signalId: String?, onComplete: () -> Unit) {
         viewModelScope.launch {
             _isLoading.value = true
@@ -84,13 +103,15 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    // QR Login
+    // ─── QR Login ───
+
     private var qrToken: String? = null
-    private var qrPollJob: kotlinx.coroutines.Job? = null
+    private var qrPollJob: Job? = null
 
     fun startQrFlow() {
         viewModelScope.launch {
             _qrStatus.value = QrStatus.Loading
+            _qrApprovedUser.value = null
             _error.value = null
             val result = authRepository.qrCreate()
             if (result.isSuccess) {
@@ -116,9 +137,16 @@ class AuthViewModel @Inject constructor(
                         "scanned" -> _qrStatus.value = QrStatus.Scanned
                         "approved" -> {
                             _qrStatus.value = QrStatus.Approved
-                            delay(1000)
                             qrPollJob?.cancel()
-                            // Auth token is saved in repository
+                            // Fetch user profile after auth token is saved
+                            try {
+                                val userResult = profileRepository.getMe()
+                                if (userResult.isSuccess) {
+                                    _qrApprovedUser.value = userResult.getOrNull()
+                                }
+                            } catch (_: Exception) {
+                                // If fetch fails, user stays null → will go to ProfileSetup
+                            }
                         }
                         "expired" -> {
                             _qrStatus.value = QrStatus.Expired

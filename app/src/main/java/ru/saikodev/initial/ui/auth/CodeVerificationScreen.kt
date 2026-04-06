@@ -15,18 +15,16 @@ import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -34,10 +32,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -50,14 +45,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.delay
+import ru.saikodev.initial.domain.model.User
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CodeVerificationScreen(
     email: String,
     via: String,
-    onSuccess: () -> Unit,
-    onLoggedIn: () -> Unit,
+    onVerified: (user: User) -> Unit,
     onBack: () -> Unit,
     viewModel: AuthViewModel = hiltViewModel()
 ) {
@@ -87,7 +82,7 @@ fun CodeVerificationScreen(
                 .padding(top = 32.dp)
         ) {
             IconButton(onClick = onBack) {
-                Icon(Icons.Default.ArrowBack, contentDescription = "Назад")
+                Icon(Icons.Rounded.ArrowBack, contentDescription = "Назад")
             }
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -119,7 +114,7 @@ fun CodeVerificationScreen(
                 Spacer(modifier = Modifier.height(8.dp))
             }
 
-            // Code input
+            // ─── Code input boxes ───
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -134,10 +129,10 @@ fun CodeVerificationScreen(
                                     focusRequesters[index + 1].requestFocus()
                                 }
                                 // Auto-submit when all filled
-                                if (code.all { it.isNotEmpty() } as Boolean) {
+                                if (code.all { it.isNotEmpty() }) {
                                     focusManager.clearFocus()
-                                    viewModel.verifyCode(email, code.joinToString("")) {
-                                        onLoggedIn()
+                                    viewModel.verifyCode(email, code.joinToString("")) { user ->
+                                        onVerified(user)
                                     }
                                 }
                             }
@@ -158,17 +153,18 @@ fun CodeVerificationScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
+            // ─── Verify button ───
             Button(
                 onClick = {
-                    viewModel.verifyCode(email, code.joinToString("")) {
-                        onLoggedIn()
+                    viewModel.verifyCode(email, code.joinToString("")) { user ->
+                        onVerified(user)
                     }
                 },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),
                 shape = RoundedCornerShape(12.dp),
-                enabled = code.all { it.isNotEmpty() } as Boolean && !isLoading,
+                enabled = code.all { it.isNotEmpty() } && !isLoading,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary
                 )
@@ -180,13 +176,13 @@ fun CodeVerificationScreen(
                         strokeWidth = 2.dp
                     )
                 } else {
-                    Text("Подтвердить")
+                    Text("Подтвердить", fontWeight = FontWeight.Medium)
                 }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Resend
+            // ─── Resend ───
             if (resendTimer > 0) {
                 Text(
                     "Повторная отправка через ${resendTimer}с",

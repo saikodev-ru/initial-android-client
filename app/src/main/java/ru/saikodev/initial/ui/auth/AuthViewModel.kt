@@ -11,7 +11,9 @@ import kotlinx.coroutines.launch
 import ru.saikodev.initial.domain.model.User
 import ru.saikodev.initial.domain.repository.AuthRepository
 import ru.saikodev.initial.domain.repository.ProfileRepository
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import ru.saikodev.initial.data.api.dto.UserDto
 import javax.inject.Inject
 
 @HiltViewModel
@@ -161,7 +163,7 @@ class AuthViewModel @Inject constructor(
                                 authRepository.saveQrAuth(
                                     pollData.auth_token,
                                     if (pollData.user != null) {
-                                        Json.encodeToString(pollData.user)
+                                        Json.encodeToString(UserDto.serializer(), pollData.user!!)
                                     } else ""
                                 )
                             }

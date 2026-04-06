@@ -331,11 +331,13 @@ private fun ChatListContent(
 
                 // Divider between pinned and regular chats
                 if (regularChats.isNotEmpty()) {
-                    HorizontalDivider(
-                        modifier = Modifier.padding(start = 78.dp, end = 16.dp),
-                        thickness = 0.5.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                    )
+                    item {
+                        HorizontalDivider(
+                            modifier = Modifier.padding(start = 78.dp, end = 16.dp),
+                            thickness = 0.5.dp,
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
+                    }
                 }
             }
 

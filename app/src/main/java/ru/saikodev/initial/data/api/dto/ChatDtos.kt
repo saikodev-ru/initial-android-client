@@ -176,3 +176,9 @@ data class CallSignalsResponse(
     val signals: List<CallSignalDto>? = null,
     val last_id: Int? = null
 )
+
+@Serializable
+data class RegisterFcmRequest(val fcm_token: String)
+
+@Serializable
+data class RegisterFcmResponse(val ok: Boolean = false, val message: String? = null)

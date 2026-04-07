@@ -4,6 +4,7 @@ import android.util.Log
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import dagger.hilt.EntryPoint
+import dagger.hilt.EntryPointAccessors
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CoroutineScope
@@ -26,7 +27,7 @@ interface FcmEntryPoint {
 class InitialFirebaseMessagingService : FirebaseMessagingService() {
 
     private val entryPoint by lazy {
-        dagger.hilt.EntryPointAccessors.fromApplication(
+        EntryPointAccessors.fromApplication(
             applicationContext,
             FcmEntryPoint::class.java
         )
@@ -45,22 +46,21 @@ class InitialFirebaseMessagingService : FirebaseMessagingService() {
     override fun onMessageReceived(message: RemoteMessage) {
         super.onMessageReceived(message)
 
-        if (message.data.isEmpty()) {
+        val data = message.data
+        if (data.isEmpty()) {
             Log.w(TAG, "Received empty data payload")
             return
         }
 
-        val data = message.data
         Log.d(TAG, "Received push: chat_id=${data["chat_id"]}, sender=${data["sender_name"]}")
 
         val chatId = data["chat_id"]?.toIntOrNull() ?: return
-        val senderSignalId = data["sender_signal_id"] ?: ""
-        val senderName = data["sender_name"] ?: "Неизвестный"
-        val senderAvatarUrl = data["sender_avatar"]
-        val body = data["body"]
-        val mediaType = data["media_type"]
+        val senderSignalId: String = data["sender_signal_id"] ?: ""
+        val senderName: String = data["sender_name"] ?: "Неизвестный"
+        val senderAvatarUrl: String? = data["sender_avatar"]
+        val body: String? = data["body"]
+        val mediaType: String? = data["media_type"]
 
-        // Try to get cached avatar first, then download if needed
         val cachedAvatar = if (!senderAvatarUrl.isNullOrBlank()) {
             avatarCache.getCachedAvatar(senderAvatarUrl)
         } else null
@@ -68,7 +68,6 @@ class InitialFirebaseMessagingService : FirebaseMessagingService() {
         val notificationId = NotificationHelper.generateNotificationId(chatId, System.currentTimeMillis())
 
         if (cachedAvatar != null) {
-            // Avatar already cached — show notification immediately
             showNotification(
                 chatId = chatId,
                 senderSignalId = senderSignalId,
@@ -80,10 +79,8 @@ class InitialFirebaseMessagingService : FirebaseMessagingService() {
                 notificationId = notificationId
             )
         } else if (!senderAvatarUrl.isNullOrBlank()) {
-            // Download avatar, then show notification
             avatarCache.fetchAndCacheAvatar(senderAvatarUrl) { bitmap ->
-                val avatar = bitmap
-                    ?: avatarCache.createLetterAvatar(senderName)
+                val avatar = bitmap ?: avatarCache.createLetterAvatar(senderName)
                 showNotification(
                     chatId = chatId,
                     senderSignalId = senderSignalId,
@@ -96,7 +93,6 @@ class InitialFirebaseMessagingService : FirebaseMessagingService() {
                 )
             }
         } else {
-            // No avatar URL — use letter avatar
             showNotification(
                 chatId = chatId,
                 senderSignalId = senderSignalId,

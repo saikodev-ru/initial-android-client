@@ -8,15 +8,12 @@ import androidx.core.app.RemoteInput
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import okhttp3.MediaType.Companion.toMediaType
 import ru.saikodev.initial.data.api.InitialApi
 import ru.saikodev.initial.data.api.dto.SendMessageRequest
 import ru.saikodev.initial.util.NotificationHelper
 
 class ActionReplyReceiver : BroadcastReceiver() {
-
-    // Since BroadcastReceiver with Hilt injection is complex, we use a manual approach:
-    // We directly use the application context to access SharedPreferences for the token
-    // and create an OkHttp-based API call for sending the message.
 
     companion object {
         const val EXTRA_REPLY_TEXT = "reply_text"
@@ -44,7 +41,6 @@ class ActionReplyReceiver : BroadcastReceiver() {
 
         Log.d(TAG, "Reply received: chatId=$chatId, signalId=$senderSignalId, text=$replyText")
 
-        // Update notification immediately to show user's reply
         NotificationHelper.updateNotificationWithReply(
             context = context,
             notificationId = notificationId,
@@ -54,13 +50,12 @@ class ActionReplyReceiver : BroadcastReceiver() {
             replyText = replyText
         )
 
-        // Send the message to the server in background
         CoroutineScope(Dispatchers.IO).launch {
             sendMessage(context, senderSignalId, replyText)
         }
     }
 
-    private fun sendMessage(context: Context, toSignalId: String, body: String) {
+    private suspend fun sendMessage(context: Context, toSignalId: String, body: String) {
         try {
             val prefs = context.getSharedPreferences("initial_prefs", Context.MODE_PRIVATE)
             val token = prefs.getString("auth_token", null)
@@ -69,8 +64,11 @@ class ActionReplyReceiver : BroadcastReceiver() {
                 return
             }
 
-            // Build a simple Retrofit instance for the reply
-            val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true; isLenient = true; coerceInputValues = true }
+            val json = kotlinx.serialization.json.Json {
+                ignoreUnknownKeys = true
+                isLenient = true
+                coerceInputValues = true
+            }
             val client = okhttp3.OkHttpClient.Builder()
                 .addInterceptor { chain ->
                     val request = chain.request().newBuilder()
@@ -98,6 +96,4 @@ class ActionReplyReceiver : BroadcastReceiver() {
             Log.e(TAG, "Error sending reply message", e)
         }
     }
-
-    private fun String.toMediaType(): okhttp3.MediaType = okhttp3.MediaType.get(this)
 }

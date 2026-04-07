@@ -127,10 +127,11 @@ fun SettingsScreen(
                         fontSize = 14.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 } else {
-                    sessionList.forEach { session ->
+                    for (session in sessionList) {
+                        val sessionId = session.id ?: continue
                         SessionItem(
                             session = session,
-                            onTerminate = { viewModel.terminateSession(session.id ?: return@forEach) }
+                            onTerminate = { viewModel.terminateSession(sessionId) }
                         )
                     }
                 }

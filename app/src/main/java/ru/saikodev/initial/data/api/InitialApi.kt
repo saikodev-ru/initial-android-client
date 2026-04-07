@@ -119,4 +119,8 @@ interface InitialApi {
     // Call signals
     @GET("get_call_signals")
     suspend fun getCallSignals(@Query("last_id") lastId: Int = 0): CallSignalsResponse
+
+    // FCM
+    @POST("register_fcm")
+    suspend fun registerFcm(@Body request: RegisterFcmRequest): RegisterFcmResponse
 }

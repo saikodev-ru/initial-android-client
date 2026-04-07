@@ -19,6 +19,7 @@ interface ChatRepository {
     suspend fun uploadFile(filePath: String): Result<UploadResult>
     suspend fun updatePresence()
     suspend fun getLinkPreview(url: String): Result<LinkPreview>
+    suspend fun registerFcmToken(fcmToken: String): Result<Unit>
 }
 
 data class MessagesResult(

@@ -150,6 +150,12 @@ class ChatRepositoryImpl @Inject constructor(
             image = res.image, domain = res.domain, siteName = res.site_name, embedType = res.embed_type
         )) else Result.failure(Exception("Ошибка"))
     } catch (e: Exception) { Result.failure(e) }
+
+    override suspend fun registerFcmToken(fcmToken: String): Result<Unit> = try {
+        val res = api.registerFcm(RegisterFcmRequest(fcm_token = fcmToken))
+        if (res.ok) Result.success(Unit)
+        else Result.failure(Exception(res.message ?: "Ошибка регистрации FCM"))
+    } catch (e: Exception) { Result.failure(e) }
 }
 
 // ── DTO → Domain mapping ──

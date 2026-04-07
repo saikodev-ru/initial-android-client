@@ -3,7 +3,7 @@ package ru.saikodev.initial.ui.chatlist
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.firebase.messaging.FirebaseMessaging
+
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -58,25 +58,29 @@ class ChatListViewModel @Inject constructor(
             Log.d("ChatListVM", "User not logged in, skipping FCM registration")
             return
         }
-        FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
-            if (!task.isSuccessful) {
-                Log.w("ChatListVM", "Fetching FCM token failed", task.exception)
-                return@addOnCompleteListener
-            }
-            val token = task.result
-            Log.d("ChatListVM", "FCM token obtained, registering with server")
-            viewModelScope.launch {
-                try {
-                    val result = chatRepository.registerFcmToken(token)
-                    if (result.isSuccess) {
-                        Log.d("ChatListVM", "FCM token registered successfully")
-                    } else {
-                        Log.w("ChatListVM", "FCM token registration failed: ${result.exceptionOrNull()?.message}")
+        try {
+            com.google.firebase.messaging.FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+                if (!task.isSuccessful) {
+                    Log.w("ChatListVM", "Fetching FCM token failed", task.exception)
+                    return@addOnCompleteListener
+                }
+                val token = task.result
+                Log.d("ChatListVM", "FCM token obtained, registering with server")
+                viewModelScope.launch {
+                    try {
+                        val result = chatRepository.registerFcmToken(token)
+                        if (result.isSuccess) {
+                            Log.d("ChatListVM", "FCM token registered successfully")
+                        } else {
+                            Log.w("ChatListVM", "FCM token registration failed: ${result.exceptionOrNull()?.message}")
+                        }
+                    } catch (e: Exception) {
+                        Log.e("ChatListVM", "FCM registration error", e)
                     }
-                } catch (e: Exception) {
-                    Log.e("ChatListVM", "FCM registration error", e)
                 }
             }
+        } catch (e: Exception) {
+            Log.w("ChatListVM", "FirebaseMessaging not available", e)
         }
     }
 
